@@ -1,0 +1,2 @@
+# CJBT
+Python backtest application
