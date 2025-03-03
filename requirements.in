@@ -5,3 +5,7 @@ yfinance
 hvplot
 panel
 bokeh
+
+
+
+pip install pandas pandas_ta numpy==1.22 yfinance hvplot panel bokeh
