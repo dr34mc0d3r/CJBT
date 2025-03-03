@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from pandas_ta import macd
 # import hvplot.pandas
@@ -508,4 +509,21 @@ class StockVisualizer:
         ).servable()
 
     def show(self):
+
+        # Get allowed origins from environment variable
+        # allowed_origins = os.getenv('BOKEH_ALLOW_WS_ORIGIN', 'localhost:3000').split(',')
+        
+        
         pn.serve(self.panel)
+
+        # pn.serve(
+        #     {'/': self.panel},
+        #     port=3000,
+        #     show=False,
+        #     title='Simple Line Chart',
+        #     address='0.0.0.0',           # Bind to all network interfaces
+        #     allow_websocket_origin=["192.168.1.200:3000","173.170.187.120:3000"],
+        #     threaded=True,       # Enable threaded server for better concurrency
+        #     num_procs=1,         # Number of processes (1 is usually fine for simple apps)
+        #     websocket_max_message_size=20*1024*1024  # Increase max message size if needed
+        # )
