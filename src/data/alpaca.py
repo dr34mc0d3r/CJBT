@@ -5,6 +5,7 @@ import time
 import pytz
 
 import sys
+from dotenv import load_dotenv
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -12,8 +13,8 @@ from classes.Alpaca2CSV import Alpaca2CSV
 from classes.DateRange import DayDateRange
 
 
-API_KEY = 'PKLKMDZBX743LJ4SVNNN'
-API_SECRET = 'nfvLFGbUThHdQLecifOwioRMRhoYzkLQhQP4sbaZ'
+API_KEY = os.getenv('ALPACA_API_KEY')
+API_SECRET = os.getenv('ALPACA_API_SECRET')
 
 def get_historical_data(symbol, start_date, end_date):
 
