@@ -12,7 +12,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from classes.Alpaca2CSV import Alpaca2CSV
 from classes.DateRange import DayDateRange
 
-
+# Load environment variables from the .env file (if present)
+load_dotenv()
 API_KEY = os.getenv('ALPACA_API_KEY')
 API_SECRET = os.getenv('ALPACA_API_SECRET')
 
@@ -31,8 +32,9 @@ def get_historical_data(symbol, start_date, end_date):
     headers = {"APCA-API-KEY-ID": API_KEY, "APCA-API-SECRET-KEY": API_SECRET}
     response = requests.get(url, headers=headers)
 
+    # print(headers, url, response.text)
     out = response.json()
-    # print(url)
+    
 
     return out
     # # return contains
@@ -78,9 +80,9 @@ if __name__ == "__main__":
     # Record start time
     start_time = time.time()
 
-    symbol = "TSLA"
+    symbol = "MSFT"
 
-    date_range = DayDateRange("2021-01-01", "2025-03-05", True) # YYYY-MM-DD'
+    date_range = DayDateRange("2024-01-01", "2025-03-05", True) # YYYY-MM-DD'
     dates = date_range.get_dates_between()
     print("Returned list:", len(dates))
 

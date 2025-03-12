@@ -60,10 +60,10 @@ class Alpaca2CSV:
         date_str = df.index[0].strftime('%Y-%m-%d')
         
         # Create directory if it doesn't exist
-        os.makedirs(f'data/1m/{symbol}', exist_ok=True)
+        os.makedirs(f'/Users/chrisjackson/Desktop/DEV/python/data/1m/{symbol}', exist_ok=True)
         
         # Create filename
-        filename = f'data/1m/{symbol}/{symbol}_{date_str}.csv'
+        filename = f'/Users/chrisjackson/Desktop/DEV/python/data/1m/{symbol}/{symbol}_{date_str}.csv'
         
         # Save to CSV, overwriting if file exists and overwrite=True
         if overwrite or not os.path.exists(filename):
