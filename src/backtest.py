@@ -1,3 +1,5 @@
+"""my python backtest app from scratch"""
+
 import pandas as pd
 import pandas_ta as ta
 from pandas_ta import macd

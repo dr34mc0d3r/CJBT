@@ -1,3 +1,5 @@
+"""df_editor allows you to download alpaca stock data to csv files"""
+
 import numpy as np
 import pandas_ta as ta
 import pandas as pd

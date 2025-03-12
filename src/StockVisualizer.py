@@ -1,3 +1,5 @@
+"""Panel page for backtest app"""
+
 import os
 import pandas as pd
 from pandas_ta import macd

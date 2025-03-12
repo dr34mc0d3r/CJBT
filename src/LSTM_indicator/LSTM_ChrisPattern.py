@@ -1,3 +1,4 @@
+"""Torch LSTM to learn my personal patterns"""
 
 # Grock discussion: https://x.com/i/grok?conversation=1898847484652265592
 

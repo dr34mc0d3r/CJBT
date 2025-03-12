@@ -1,3 +1,5 @@
+"""download alpaca data for date / dates"""
+
 import pandas as pd
 from datetime import datetime
 import os
