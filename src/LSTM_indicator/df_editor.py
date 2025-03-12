@@ -222,7 +222,7 @@ class StockApp:
 # Instantiate the app
 
 dataManager = DataManager()
-root_dir = '/Users/chrisjackson/Desktop/DEV/python/CNN1/src/lstm2/data/1m/TSLA'
+root_dir = '/Users/chrisjackson/Desktop/DEV/python/data/1m/TSLA'
 df = dataManager.build_df_from_directory(root_dir, 10)
 
 # set EMA Short and Long Periods for the EMA indicators
