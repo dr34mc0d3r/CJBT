@@ -9,6 +9,8 @@ from bokeh.models import ColumnDataSource
 from bokeh.events import Tap
 from bokeh.transform import factor_cmap
 import os
+from datetime import datetime
+import re
 
 # Extend Panel with the Bokeh backend
 pn.extension('bokeh')
@@ -26,22 +28,36 @@ class DataManager():
     
     def build_df_from_directory(self, root_dir, break_out_after=100000):
 
+        # Regular expression to capture the date in YYYY-MM-DD format
+        date_pattern = re.compile(r'\d{4}-\d{2}-\d{2}')
+
         # Sort files by creation time to process them in chronological order
-        files_with_ctime = []
+        files_with_date = []
         dataframes = []
+        
+
+        # Walk through the directory and process each file
         for dirname, _, filenames in os.walk(root_dir):
             for filename in filenames:
-                file_path = os.path.join(dirname, filename)
-                try:
-                    ctime = os.path.getctime(file_path)
-                    files_with_ctime.append((ctime, file_path))
-                except FileNotFoundError:
-                    print(f"Papa couldn't find the file: {file_path}")
-                except OSError as e:
-                    print(f"Papa encountered an error with the file: {file_path}. Error: {e}")
+                # Search for a date pattern in the filename
+                match = date_pattern.search(filename)
+                if match:
+                    date_str = match.group()  # Extract the date string, e.g., "2020-12-31"
+                    try:
+                        # Convert the date string to a datetime object
+                        file_date = datetime.strptime(date_str, '%Y-%m-%d')
+                        file_path = os.path.join(dirname, filename)
+                        files_with_date.append((file_date, file_path))
+                    except ValueError:
+                        print(f"Papa encountered an error parsing the date in file: {filename}")
+                else:
+                    print(f"Papa couldn't find a date in file: {filename}")
 
-        files_with_ctime.sort()
-        sorted_file_paths = [file_path for _, file_path in files_with_ctime]
+        # Sort the list of files by the extracted date
+        files_with_date.sort()
+
+        # Create a sorted list of file paths based on the date
+        sorted_file_paths = [file_path for _, file_path in files_with_date]
 
         break_out_after_counter = 1
         for path in sorted_file_paths:
