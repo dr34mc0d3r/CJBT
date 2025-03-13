@@ -20,15 +20,17 @@ API_SECRET = os.getenv('ALPACA_API_SECRET')
 
 def get_historical_data(symbol, start_date, end_date):
 
-    url = f"https://data.alpaca.markets/v2/stocks/bars?" \
-        f"symbols={symbol}&" \
-        f"timeframe=1Min&" \
-        f"start={start_date}&" \
-        f"end={end_date}&" \
-        f"limit=1000&" \
-        f"adjustment=raw&" \
-        f"feed=iex&" \
+    url = (
+        f"https://data.alpaca.markets/v2/stocks/bars?"
+        f"symbols={symbol}&"
+        f"timeframe=1Min&"
+        f"start={start_date}&"
+        f"end={end_date}&"
+        f"limit=1000&"
+        f"adjustment=raw&"
+        f"feed=iex&"
         f"sort=asc"
+    )
     
     headers = {"APCA-API-KEY-ID": API_KEY, "APCA-API-SECRET-KEY": API_SECRET}
     response = requests.get(url, headers=headers)
@@ -83,7 +85,7 @@ if __name__ == "__main__":
 
     symbol = "MSFT"
 
-    date_range = DayDateRange("2024-01-01", "2025-03-05", True) # YYYY-MM-DD'
+    date_range = DayDateRange("2025-03-05", "2025-03-12", True) # YYYY-MM-DD'
     dates = date_range.get_dates_between()
     print("Returned list:", len(dates))
 
