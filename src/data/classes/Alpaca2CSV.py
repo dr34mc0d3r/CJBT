@@ -26,12 +26,12 @@ class Alpaca2CSV:
         # Filter rows to only include those matching the target date
         df = df[df.index.strftime('%Y-%m-%d') == target_date]
         
-        # Define time boundaries for the target date
-        start_time = pd.to_datetime(f"{target_date} 14:30:00")
-        end_time = pd.to_datetime(f"{target_date} 20:59:00")
-        
-        # Filter rows to only include times between 14:30:00 and 20:59:00
-        df = df[(df.index >= start_time) & (df.index <= end_time)]
+                    # # Define time boundaries for the target date
+                    # start_time = pd.to_datetime(f"{target_date} 14:30:00")
+                    # end_time = pd.to_datetime(f"{target_date} 20:59:00")
+                    
+                    # # Filter rows to only include times between 14:30:00 and 20:59:00
+                    # df = df[(df.index >= start_time) & (df.index <= end_time)]
         
         # Rename columns
         df = df.rename(columns={
