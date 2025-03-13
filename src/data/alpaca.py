@@ -39,6 +39,8 @@ def get_historical_data(symbol, start_date, end_date):
         Consider adding error handling for non-200 HTTP responses.
     """
 
+
+
     url = (
         f"https://data.alpaca.markets/v2/stocks/bars?"
         f"symbols={symbol}&"
@@ -47,14 +49,14 @@ def get_historical_data(symbol, start_date, end_date):
         f"end={end_date}&"
         f"limit=1000&"
         f"adjustment=split&"
-        f"feed=sip&"
+        f"feed=iex&"
         f"sort=asc"
     )
     
     headers = {"APCA-API-KEY-ID": API_KEY, "APCA-API-SECRET-KEY": API_SECRET}
     response = requests.get(url, headers=headers)
 
-    # print(headers, url, response.text)
+    # print(url)
     out = response.json()
     
 
