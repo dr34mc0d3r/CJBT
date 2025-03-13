@@ -46,8 +46,8 @@ def get_historical_data(symbol, start_date, end_date):
         f"start={start_date}&"
         f"end={end_date}&"
         f"limit=1000&"
-        f"adjustment=raw&"
-        f"feed=iex&"
+        f"adjustment=split&"
+        f"feed=sip&"
         f"sort=asc"
     )
     
@@ -118,9 +118,9 @@ if __name__ == "__main__":
     # Record start time
     start_time = time.time()
 
-    symbol = "MSFT"
+    symbol = "TSLA"
 
-    date_range = DayDateRange("2025-03-05", "2025-03-12", True) # YYYY-MM-DD'
+    date_range = DayDateRange("2020-12-31", "2025-03-12", True) # YYYY-MM-DD'
     dates = date_range.get_dates_between()
     print("Returned list:", len(dates))
 
