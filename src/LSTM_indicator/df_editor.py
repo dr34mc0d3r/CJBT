@@ -304,7 +304,7 @@ if __name__ == '__main__':
 
     else:
         print(f"File '{dataManager.pickleFilePath}' does not exist. Loading from CSV files")
-        df = dataManager.build_df_from_directory(root_dir, 10)
+        df = dataManager.build_df_from_directory(root_dir, 10000)
 
         # add EMA indicators values to datadrame
         dataManager.add_ema(df, short_ema_period)
