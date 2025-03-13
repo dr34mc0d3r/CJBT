@@ -5,7 +5,7 @@ import pandas_ta as ta
 import pandas as pd
 import panel as pn
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, HoverTool
 from bokeh.events import Tap
 from bokeh.transform import factor_cmap
 import os
@@ -171,6 +171,9 @@ class StockApp:
         # Create a ColumnDataSource for the "Close" price line
         self.source = ColumnDataSource(data={
             'date': self.df.index,
+            'open': self.df['Open'],
+            'high': self.df['High'],
+            'low': self.df['Low'],
             'close': self.df['Close']
         })
         
@@ -218,6 +221,24 @@ class StockApp:
 
         # Plot the Close Price as a blue line
         p.line('date', 'close', source=self.source, line_width=2, color=(173, 173, 173), legend_label="Close Price")
+
+        # Configure hover tool
+        hover = HoverTool(
+            tooltips=[
+                ('Date', '@date{%F}'),
+                ('Open', '@open{0.2f}'),
+                ('High', '@high{0.2f}'),
+                ('Low', '@low{0.2f}'),
+                ('Close', '@close{0.2f}'),
+            ],
+            formatters={
+                '@date': 'datetime'
+            },
+            mode='vline'
+        )
+
+        # Add hover tool to plot
+        p.add_tools(hover)
         
         # Plot dots on the chart for 1, 2 signals
         p.circle(
@@ -304,7 +325,7 @@ if __name__ == '__main__':
 
     else:
         print(f"File '{dataManager.pickleFilePath}' does not exist. Loading from CSV files")
-        df = dataManager.build_df_from_directory(root_dir, 10000)
+        df = dataManager.build_df_from_directory(root_dir, 100)
 
         # add EMA indicators values to datadrame
         dataManager.add_ema(df, short_ema_period)
