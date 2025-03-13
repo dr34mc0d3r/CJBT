@@ -43,11 +43,13 @@ class DataManager():
         files_with_ctime.sort()
         sorted_file_paths = [file_path for _, file_path in files_with_ctime]
 
-        break_out_after_counter = 0
+        break_out_after_counter = 1
         for path in sorted_file_paths:
             try:
                 if break_out_after_counter > break_out_after:
                     break
+
+                print(f"Loading CSV for {path}")
                 df = self.stocks_data(path)
                 dataframes.append(df)
                 break_out_after_counter += 1
