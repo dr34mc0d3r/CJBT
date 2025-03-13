@@ -92,8 +92,8 @@ if __name__ == "__main__":
     for date in dates:
 
         #to string
-        date = date.strftime("%Y-%m-%d")
-        startdateDT, enddateDT = get_date_range(date)
+        date_str = date.strftime("%Y-%m-%d")
+        startdateDT, enddateDT = get_date_range(date_str)
 
         startdateDT = startdateDT.strftime("%Y-%m-%d")
         enddateDT = enddateDT.strftime("%Y-%m-%d")
