@@ -1,4 +1,8 @@
-"""Use Alpaca to save data to csv files"""
+"""
+This module uses the Alpaca API to fetch historical stock data and save it as CSV files.
+It processes data for a given date range and converts the API's JSON response into a CSV format.
+"""
+
 
 import requests
 from datetime import datetime, timedelta
@@ -19,6 +23,21 @@ API_KEY = os.getenv('ALPACA_API_KEY')
 API_SECRET = os.getenv('ALPACA_API_SECRET')
 
 def get_historical_data(symbol, start_date, end_date):
+    """
+    Retrieve historical market data for a given stock symbol from the Alpaca API.
+
+    Parameters:
+        symbol (str): The stock ticker symbol (e.g., 'AAPL').
+        start_date (str): The start date for the data in ISO format (e.g., '2024-01-01').
+        end_date (str): The end date for the data in ISO format (e.g., '2024-01-02').
+
+    Returns:
+        dict: A JSON dictionary containing historical bars data from Alpaca.
+               The structure typically includes a 'bars' key with the stock data and possibly a 'next_page_token'.
+    
+    Note:
+        Consider adding error handling for non-200 HTTP responses.
+    """
 
     url = (
         f"https://data.alpaca.markets/v2/stocks/bars?"
@@ -49,13 +68,19 @@ def get_historical_data(symbol, start_date, end_date):
 
 def get_date_range(enddate: str) -> tuple[datetime, datetime]:
     """
-    Given an enddate, return startdate (previous day) and enddate as a tuple.
-    
+    Compute a date range ending on the provided date.
+
+    Given an end date in 'YYYY-MM-DD' format, this function calculates and returns
+    the start date (the previous day) and the end date as datetime objects.
+
     Parameters:
-    - enddate (str): End date in 'YYYY-MM-DD' format (e.g., '2023-01-02')
-    
+        enddate (str): The end date as a string in 'YYYY-MM-DD' format.
+
     Returns:
-    - tuple: (startdate, enddate) as strings in 'YYYY-MM-DD' format
+        tuple: A tuple containing two datetime objects (start_date, end_date).
+
+    Raises:
+        ValueError: If the input date string is not in the 'YYYY-MM-DD' format.
     """
     try:
         # Convert enddate string to datetime
@@ -78,6 +103,16 @@ def get_date_range(enddate: str) -> tuple[datetime, datetime]:
 
 
 if __name__ == "__main__":
+    """
+    Main execution block:
+    - Set the timezone for data processing.
+    - Record the starting time to measure script execution duration.
+    - Create a date range using DayDateRange.
+    - For each date, calculate the appropriate start and end dates.
+    - Fetch historical data using the Alpaca API.
+    - Process and save the fetched data as a CSV file.
+    - Output the elapsed time for the entire operation.
+    """
     
     timezone = pytz.timezone('US/Eastern')
     # Record start time
@@ -91,10 +126,13 @@ if __name__ == "__main__":
 
     for date in dates:
 
-        #to string
+        # Convert the datetime object to a string in 'YYYY-MM-DD' format.
         date_str = date.strftime("%Y-%m-%d")
+
+        # Calculate the start and end dates for the API request based on the current date.
         startdateDT, enddateDT = get_date_range(date_str)
 
+        # Convert datetime objects back to strings for API request formatting.
         startdateDT = startdateDT.strftime("%Y-%m-%d")
         enddateDT = enddateDT.strftime("%Y-%m-%d")
 
@@ -108,9 +146,10 @@ if __name__ == "__main__":
         # startdate = startdate.replace(":", "%3A")
         # enddate = enddate.replace(":", "%3A")
         
-
+        # Fetch historical data from Alpaca using the calculated date range.
         json_alpacaReturn = get_historical_data(symbol, startdateDT, enddateDT)
 
+        # Check if the response contains the expected 'bars' data.
         if "bars" in json_alpacaReturn and symbol in json_alpacaReturn["bars"]:
             # print(len(json_alpacaReturn['bars'][f'{symbol}']))
 
@@ -124,15 +163,16 @@ if __name__ == "__main__":
             # print("\nResulting DataFrame:")
             # print(df)
 
+        # Optional: Introduce a pause between requests to avoid rate limits.
         # time.sleep(2)
 
-    # Record end time
+    # Record end time and compute the total elapsed time.
     end_time = time.time()
 
     # Calculate elapsed time in seconds
     elapsed_time = end_time - start_time
 
-    # Convert to hours, minutes, and seconds
+    # Convert elapsed time to hours, minutes, and seconds.
     hours = int(elapsed_time // 3600)  # Integer division by 3600 (seconds in an hour)
     minutes = int((elapsed_time % 3600) // 60)  # Remainder after hours, divided by 60 (seconds in a minute)
     seconds = elapsed_time % 60  # Remainder after minutes
@@ -145,6 +185,7 @@ if __name__ == "__main__":
         time_str.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
     time_str.append(f"{seconds:.2f} second{'s' if seconds != 1 else ''}")
 
+    # Display the formatted runtime.
     print(f"The loop took {', '.join(time_str)} to run.")
     
     
