@@ -25,6 +25,8 @@ class DataManager():
     
     def build_df_from_directory(self, root_dir, break_out_after=100000):
         print("Papa training the model for forecasting...")
+
+        # Sort files by creation time to process them in chronological order
         files_with_ctime = []
         dataframes = []
         for dirname, _, filenames in os.walk(root_dir):
@@ -73,7 +75,7 @@ class DataManager():
         return large_dataframe
     
     # New function to add the 100 EMA using pandas-ta
-    def add_ema(df, period=100):
+    def add_ema(self, df, period=100):
         """
         Calculates the Exponential Moving Average (EMA) for the 'Close' column
         and adds it as a new column 'EMA_100' to the DataFrame.
@@ -85,6 +87,20 @@ class DataManager():
         
 
 class StockApp:
+    """
+    Reads stock data from a CSV file and sets the datetime column as the index.
+
+    Parameters:
+        csv_path (str): Path to the CSV file containing stock data.
+
+    Returns:
+        pd.DataFrame: DataFrame with the datetime index and stock data.
+    
+    Raises:
+        FileNotFoundError: If the CSV file is not found.
+        pd.errors.EmptyDataError: If the CSV file is empty.
+    """
+
     def __init__(self, df):
         # Generate sample OHLCV data
         self.df = df
@@ -160,13 +176,11 @@ class StockApp:
     def create_plot(self):
         """Create the Bokeh plot with OHLCV 'Close' line and the 'Signal' line."""
         p = figure(x_axis_type="datetime", title="OHLCV Data", height=400, width=800)
+
         # Plot the Close Price as a blue line
-        p.line('date', 'close', source=self.source, line_width=2, color="navy", legend_label="Close Price")
+        p.line('date', 'close', source=self.source, line_width=2, color=(173, 173, 173), legend_label="Close Price")
         
-        # Plot the Signal values as a red line and circles (they will only show non-zero points)
-        # p.line('date', 'signal', source=self.signal_source, line_width=2, color="red",
-        #        legend_label="Signal", name="signal_line")
-        # p.circle('date', 'offset', source=self.signal_source, size=8, color="red", name="signal_circles")
+        # Plot dots on the chart for 1, 2 signals
         p.circle(
             'date', 'offset', source=self.signal_source, size=8,
             color=factor_cmap('signal', palette=['red', 'blue'], factors=["1", "2"]),
@@ -221,16 +235,18 @@ class StockApp:
         """Return the complete Panel layout for serving."""
         return self.layout
 
-# Instantiate the app
 
-dataManager = DataManager()
-root_dir = '/Users/chrisjackson/Desktop/DEV/python/data/1m/TSLA'
-df = dataManager.build_df_from_directory(root_dir, 10)
+# Main execution block
+if __name__ == '__main__':
 
-# set EMA Short and Long Periods for the EMA indicators
+    dataManager = DataManager()
+    root_dir = '/Users/chrisjackson/Desktop/DEV/python/data/1m/TSLA'
+    df = dataManager.build_df_from_directory(root_dir, 10)
+
+    # set EMA Short and Long Periods for the EMA indicators
 
 
-app = StockApp(df)
+    app = StockApp(df)
 
-# Serve the app (use 'panel serve <script_name>.py' to run this script)
-pn.serve(app.show, show=True)
+    # Serve the app (use 'panel serve <script_name>.py' to run this script)
+    pn.serve(app.show, show=True)
