@@ -47,7 +47,7 @@ def get_historical_data(symbol, start_date, end_date):
     # ]}, 'next_page_token': None}
 
 
-def get_date_range(enddate: str) -> tuple[str, str]:
+def get_date_range(enddate: str) -> tuple[datetime, datetime]:
     """
     Given an enddate, return startdate (previous day) and enddate as a tuple.
     
