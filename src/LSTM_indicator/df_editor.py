@@ -15,7 +15,8 @@ pn.extension('bokeh')
 
 class DataManager():
     def __init__(self):
-        self.data_manager_df = pd.DataFrame()
+        self.large_dataframe = pd.DataFrame()
+        self.pickleFilePath = ""
 
     def stocks_data(self, csv_path):
         df = pd.read_csv(csv_path)
@@ -24,7 +25,6 @@ class DataManager():
         return df
     
     def build_df_from_directory(self, root_dir, break_out_after=100000):
-        print("Papa training the model for forecasting...")
 
         # Sort files by creation time to process them in chronological order
         files_with_ctime = []
@@ -83,6 +83,43 @@ class DataManager():
         df[f"EMA_{period}"] = ta.ema(df['Close'], length=period)
         print("Papa calculated the 100 EMA!")
         return df
+    
+    def save_dataframe_as_pickle(self, df):
+        """
+        Save a pandas DataFrame to a pickle file.
+
+        Parameters:
+            df (pd.DataFrame): The DataFrame to save.
+            file_path (str): The file path (including filename) where the pickle will be stored.
+        """
+
+        df.to_pickle(self.pickleFilePath)
+        print(f"DataFrame saved to {self.pickleFilePath}")
+
+    def load_dataframe_from_pickle(self, pickleFilePath):
+        """
+        Load a pandas DataFrame from a pickle file if it exists,
+        with error trapping to handle any issues during loading.
+
+        Parameters:
+            file_path (str): Path to the pickle file.
+
+        Returns:
+            pd.DataFrame or None: The loaded DataFrame if successful, 
+                                or None if the file doesn't exist or an error occurs.
+        """
+
+        if not os.path.exists(pickleFilePath):
+            print(f"File '{pickleFilePath}' does not exist.")
+            return None
+
+        try:
+            df = pd.read_pickle(pickleFilePath)
+            print(f"DataFrame loaded successfully from '{pickleFilePath}'.")
+            return df
+        except Exception as e:
+            print(f"Error loading pickle file '{pickleFilePath}': {e}")
+            return None
 
         
 
@@ -101,10 +138,13 @@ class StockApp:
         pd.errors.EmptyDataError: If the CSV file is empty.
     """
 
-    def __init__(self, df):
+    def __init__(self, df, pickleFilePath):
         # Generate sample OHLCV data
+        self.dataManager = DataManager()  # Create an instance of Class B
+        self.dataManager.pickleFilePath = pickleFilePath
         self.df = df
         self.selected_date = None
+        
         
         # Ensure 'Signal' column exists (defaulting to 0)
         if 'Signal' not in self.df.columns:
@@ -125,10 +165,13 @@ class StockApp:
         # Create interactive Panel widgets
         self.html_pane = pn.pane.HTML("<b>Click on the chart to select a date!</b>", width=400)
         self.text_input = pn.widgets.TextInput(name="Your Comment", placeholder="Type your comment here...")
-        # Radio button options: -1 or 1 (signal values to add)
+        # Radio button options: 0 Hold, 1 Buy, 2 Sell (signal values to add)
         self.radio_button_group = pn.widgets.RadioButtonGroup(name="Signal Value", options=[0, 1, 2], button_type="success")
         self.submit_button = pn.widgets.Button(name="Submit", button_type="primary")
         self.submit_button.on_click(self.on_submit)
+
+        self.save_button = pn.widgets.Button(name="Save", button_type="primary")
+        self.save_button.on_click(self.on_save)
         
         # Compose the layout:
         # 1. The Bokeh chart on top.
@@ -137,30 +180,8 @@ class StockApp:
         self.layout = pn.Column(
             self.plot,
             pn.Row(self.html_pane),
-            pn.Row(self.text_input, self.radio_button_group, self.submit_button)
+            pn.Row(self.text_input, self.radio_button_group, self.submit_button, self.save_button)
         )
-
-    # def generate_data(self):
-    #     """Generate sample OHLCV stock data with a datetime index."""
-    #     dates = pd.date_range(start='2020-01-01', periods=100, freq='D')
-    #     np.random.seed(42)  # For reproducibility
-    #     # Create a random walk for prices
-    #     price = np.cumsum(np.random.randn(100)) + 100
-    #     # Generate OHLC values with some randomness
-    #     high = price + np.abs(np.random.randn(100))
-    #     low = price - np.abs(np.random.randn(100))
-    #     open_price = price + np.random.randn(100)
-    #     close = price + np.random.randn(100)
-    #     volume = np.random.randint(1000, 5000, size=100)
-        
-    #     df = pd.DataFrame({
-    #         'Open': open_price,
-    #         'High': high,
-    #         'Low': low,
-    #         'Close': close,
-    #         'Volume': volume
-    #     }, index=dates)
-    #     return df
 
 
     def get_signal_data(self):
@@ -218,7 +239,7 @@ class StockApp:
         
         # Update the Signal column by adding the radio value to the selected date's Signal
         if self.selected_date in self.df.index:
-            self.df.loc[self.selected_date, 'Signal'] += radio_value
+            self.df.loc[self.selected_date, 'Signal'] = radio_value
         else:
             print("Selected date not in DataFrame!")
         
@@ -231,6 +252,17 @@ class StockApp:
         # Clear the text input for the next entry
         self.text_input.value = ""
 
+    def on_save(self, event):
+        """Handle the Save button click: Output final df to console for validation."""
+        filtered_df = self.df[self.df['Signal'].isin([1, 2])]
+        print(filtered_df)
+        print(self.df)
+
+        # Save dataframe to file
+        self.dataManager.save_dataframe_as_pickle(self.df)
+
+
+
     def show(self):
         """Return the complete Panel layout for serving."""
         return self.layout
@@ -239,14 +271,28 @@ class StockApp:
 # Main execution block
 if __name__ == '__main__':
 
+
     dataManager = DataManager()
     root_dir = '/Users/chrisjackson/Desktop/DEV/python/data/1m/TSLA'
-    df = dataManager.build_df_from_directory(root_dir, 10)
+    dataManager.pickleFilePath = '/Users/chrisjackson/Desktop/DEV/python/CJBT/src/LSTM_indicator/pickleFile.pickle'
 
     # set EMA Short and Long Periods for the EMA indicators
+    short_ema_period, long_ema_period = [13, 100]
 
+    df = dataManager.load_dataframe_from_pickle(dataManager.pickleFilePath)
 
-    app = StockApp(df)
+    if df is not None:
+        print(f"Loading data from File '{dataManager.pickleFilePath}'")
+
+    else:
+        print(f"File '{dataManager.pickleFilePath}' does not exist. Loading from CSV files")
+        df = dataManager.build_df_from_directory(root_dir, 10)
+
+        # add EMA indicators values to datadrame
+        dataManager.add_ema(df, short_ema_period)
+        dataManager.add_ema(df, long_ema_period)
+
+    app = StockApp(df, dataManager.pickleFilePath)
 
     # Serve the app (use 'panel serve <script_name>.py' to run this script)
     pn.serve(app.show, show=True)
