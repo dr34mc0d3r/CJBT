@@ -8,6 +8,7 @@ import requests
 from datetime import datetime, timedelta
 import time
 import pytz
+import pandas as pd
 
 import sys
 from dotenv import load_dotenv
@@ -122,7 +123,15 @@ if __name__ == "__main__":
 
     symbol = "TSLA"
 
-    date_range = DayDateRange("2020-12-31", "2025-03-12", True) # YYYY-MM-DD'
+    # Localize start and end dates to 'America/New_York' time zone
+    start_date = pd.Timestamp('2020-12-31 09:30:00', tz='America/New_York')  # Market open time
+    end_date = pd.Timestamp('2025-03-12 16:30:00', tz='America/New_York')    # 5 minutes later
+
+    # Convert to strings in the desired format
+    start_str = start_date.strftime("%Y-%m-%d") # %H:%M:%S %Z%z")
+    end_str = end_date.strftime("%Y-%m-%d") # %H:%M:%S %Z%z")
+
+    date_range = DayDateRange(start_str, end_str, True) # YYYY-MM-DD'
     dates = date_range.get_dates_between()
     print("Returned list:", len(dates))
 
