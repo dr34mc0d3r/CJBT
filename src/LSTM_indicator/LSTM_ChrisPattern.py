@@ -319,36 +319,34 @@ if __name__ == "__main__":
     # Record start time
     start_time = time.time()
 
-    
-    # Load your dataframe
-    # df = pd.read_csv('your_data.csv')
-    model_path="lstm_forecaster.pth"
-
-    root_dir = '/Users/chrisjackson/Desktop/DEV/python/CNN1/src/lstm2/data/1m/TSLA'
-    df = build_df_from_directory(root_dir, 100000)
-    
-    # Initialize TimeSeriesData
-    window_size = 60  # Hyperparameter: Sequence length, affects model memory (try 20-100)
-    data = TimeSeriesData(df, window_size)
-    
-    # Initialize LSTMSignalPredictor
-    input_size = len(data.features)
-    hidden_size = 100  # Hyperparameter: LSTM units, affects capacity (try 50-200)
-    num_layers = 1  # Hyperparameter: Number of LSTM layers, controls depth (try 1-3)
-    output_size = 3
-    model = LSTMSignalPredictor(input_size, hidden_size, num_layers, output_size, model_path)
-
-    # Clear the console at the beginning of the script
-    model.clear_console()
-    
-    # Train the model
-    batch_size = 128  # Hyperparameter: Batch size, affects training speed (try 64-256)
-    numEpochs = 50  # Hyperparameter: Number of epochs, controls training duration (try 20-100)
-    learning_rate = 0.001  # Hyperparameter: Learning rate, affects convergence (try 0.0001-0.01)
-
-    
     # -------------------- Main Loop --------------------
     try:
+
+        # Load your dataframe
+        # df = pd.read_csv('your_data.csv')
+        model_path="lstm_forecaster.pth"
+
+        root_dir = '/Users/chrisjackson/Desktop/DEV/python/CNN1/src/lstm2/data/1m/TSLA'
+        df = build_df_from_directory(root_dir, 100000)
+        
+        # Initialize TimeSeriesData
+        window_size = 60  # Hyperparameter: Sequence length, affects model memory (try 20-100)
+        data = TimeSeriesData(df, window_size)
+        
+        # Initialize LSTMSignalPredictor
+        input_size = len(data.features)
+        hidden_size = 100  # Hyperparameter: LSTM units, affects capacity (try 50-200)
+        num_layers = 1  # Hyperparameter: Number of LSTM layers, controls depth (try 1-3)
+        output_size = 3
+        model = LSTMSignalPredictor(input_size, hidden_size, num_layers, output_size, model_path)
+
+        # Clear the console at the beginning of the script
+        model.clear_console()
+        
+        # Train the model
+        batch_size = 128  # Hyperparameter: Batch size, affects training speed (try 64-256)
+        numEpochs = 50  # Hyperparameter: Number of epochs, controls training duration (try 20-100)
+        learning_rate = 0.001  # Hyperparameter: Learning rate, affects convergence (try 0.0001-0.01)
 
         # Train if no model exists
         if not os.path.exists(model.model_path):
