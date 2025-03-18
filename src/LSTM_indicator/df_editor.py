@@ -19,6 +19,8 @@ class DataManager():
     def __init__(self):
         self.large_dataframe = pd.DataFrame()
         self.pickleFilePath = ""
+        self.short_ema_period = 0
+        self.long_ema_period = 0
 
     def stocks_data(self, csv_path):
         df = pd.read_csv(csv_path)
@@ -93,13 +95,18 @@ class DataManager():
         return large_dataframe
     
     # New function to add the 100 EMA using pandas-ta
-    def add_ema(self, df, period=100):
+    def add_ema(self, df, period=100, title="long"):
         """
         Calculates the Exponential Moving Average (EMA) for the 'Close' column
         and adds it as a new column 'EMA_100' to the DataFrame.
         """
         df[f"EMA_{period}"] = ta.ema(df['Close'], length=period)
-        print("Papa calculated the 100 EMA!")
+
+        if title == "long":
+            print(f"Papa calculated the {title} {period} EMA!")
+        else:
+            print(f"Papa calculated the {title} {period} EMA!")
+
         return df
     
     def save_dataframe_as_pickle(self, df):
@@ -156,10 +163,9 @@ class StockApp:
         pd.errors.EmptyDataError: If the CSV file is empty.
     """
 
-    def __init__(self, df, pickleFilePath):
+    def __init__(self, df, datamanager):
         # Generate sample OHLCV data
-        self.dataManager = DataManager()  # Create an instance of Class B
-        self.dataManager.pickleFilePath = pickleFilePath
+        self.dataManager = datamanager
         self.df = df
         self.selected_date = None
         
@@ -174,7 +180,9 @@ class StockApp:
             'open': self.df['Open'],
             'high': self.df['High'],
             'low': self.df['Low'],
-            'close': self.df['Close']
+            'close': self.df['Close'],
+            f"EMA_{self.dataManager.short_ema_period}": self.df[f"EMA_{self.dataManager.short_ema_period}"],
+            f"EMA_{self.dataManager.long_ema_period}": self.df[f"EMA_{self.dataManager.long_ema_period}"]
         })
         
         # Create a ColumnDataSource for the "Signal" line (only non-zero signals)
@@ -222,6 +230,14 @@ class StockApp:
         # Plot the Close Price as a blue line
         p.line('date', 'close', source=self.source, line_width=2, color=(173, 173, 173), legend_label="Close Price")
 
+        # Plot the df[f"EMA_{period}"]
+        short_ema_period_column_name = f"EMA_{self.dataManager.short_ema_period}"
+        p.line('date', short_ema_period_column_name, source=self.source, line_width=2, color=(235, 64, 52), legend_label=short_ema_period_column_name)
+
+        long_ema_period_column_name = f"EMA_{self.dataManager.long_ema_period}"
+        p.line('date', long_ema_period_column_name, source=self.source, line_width=2, color=(52, 110, 235), legend_label=long_ema_period_column_name)
+
+
         # Configure hover tool
         hover = HoverTool(
             tooltips=[
@@ -230,6 +246,8 @@ class StockApp:
                 ('High', '@high{0.2f}'),
                 ('Low', '@low{0.2f}'),
                 ('Close', '@close{0.2f}'),
+                (short_ema_period_column_name, f'@{short_ema_period_column_name}{{0.000000f}}'),  # Explicit 6 zeros
+                (long_ema_period_column_name, f'@{long_ema_period_column_name}{{0.000000f}}')
             ],
             formatters={
                 '@date': 'datetime'
@@ -328,10 +346,12 @@ if __name__ == '__main__':
         df = dataManager.build_df_from_directory(root_dir, 100)
 
         # add EMA indicators values to datadrame
-        dataManager.add_ema(df, short_ema_period)
-        dataManager.add_ema(df, long_ema_period)
+        dataManager.long_ema_period = 100
+        dataManager.short_ema_period = 13
+        dataManager.add_ema(df, dataManager.short_ema_period, "short")
+        dataManager.add_ema(df, dataManager.long_ema_period, "long")
 
-    app = StockApp(df, dataManager.pickleFilePath)
+    app = StockApp(df, dataManager)
 
     # Serve the app (use 'panel serve <script_name>.py' to run this script)
     pn.serve(app.show, show=True)
