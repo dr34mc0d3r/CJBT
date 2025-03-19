@@ -335,7 +335,7 @@ if __name__ == '__main__':
     dataManager.short_ema_period = 13
 
     root_dir = '/Users/chrisjackson/Desktop/DEV/python/data/1m/TSLA'
-    dataManager.pickleFilePath = '/Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pickle'
+    dataManager.pickleFilePath = '/Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pkl'
 
     # set EMA Short and Long Periods for the EMA indicators
     short_ema_period, long_ema_period = [13, 100]
