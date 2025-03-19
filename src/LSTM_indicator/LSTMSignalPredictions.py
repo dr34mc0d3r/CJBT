@@ -11,6 +11,12 @@ Usage:
 
 Grok: https://x.com/i/grok?conversation=1902371477048930615
 pip install pandas numpy torch scikit-learn joblib matplotlib optuna torch-tb-profiler
+
+Train:
+python src/LSTM_indicator/LSTMSignalPredictions.py --train --pickle_file /Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pkl --model_file /Users/chrisjackson/Desktop/DEV/python/data/model.pth --scaler_file /Users/chrisjackson/Desktop/DEV/python/data/scaler.pkl
+
+Prediction
+python src/LSTM_indicator/LSTMSignalPredictions.py --pickle_file /Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pkl --model_file /Users/chrisjackson/Desktop/DEV/python/data/model.pth --scaler_file /Users/chrisjackson/Desktop/DEV/python/data/scaler.pkl
 """
 
 import argparse
@@ -21,6 +27,7 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.optim as optim  # Add this line
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import MinMaxScaler
 import joblib
@@ -47,7 +54,16 @@ class DataHandler:
         """
         self.pickle_file = pickle_file
         self.sequence_length = sequence_length
-        self.features = ["Open", "High", "Low", "Close", "Volume", "EMA_13", "EMA_100"]
+        self.features = [
+            "Open", 
+            "High", 
+            "Low", 
+            "Close", 
+            "Volume", 
+            "VolumeWeighted", 
+            "EMA_13", 
+            "EMA_100"
+            ]
 
     def load_data(self) -> pd.DataFrame:
         """Load DataFrame from the pickle file and filter by time range.
@@ -127,22 +143,41 @@ class DataHandler:
         )
 
     def get_training_data(self) -> Tuple[np.ndarray, np.ndarray, MinMaxScaler]:
-        """Prepare training data with scaling.
+        """Prepare training data with scaling and NaN/Inf checks.
 
         Returns:
             Tuple of (sequences, targets, scaler).
 
         Raises:
             FileNotFoundError: From load_data.
-            ValueError: From load_data or create_sequences.
+            ValueError: From load_data, create_sequences, or if NaN/Inf detected.
         """
         df = self.load_data()
-        train_data = df.dropna(subset=["Signal"])
+        # Explicitly create a copy to avoid view/copy issues
+        train_data = df.dropna(subset=["Signal"] + self.features).copy()
+        
+        # Check for NaN or Inf in features
+        if not np.isfinite(train_data[self.features]).all().all():
+            raise ValueError("Input features contain NaN or Inf values after dropna")
+        
+        if len(train_data) < self.sequence_length:
+            raise ValueError(
+                f"Insufficient data after dropping NaN rows: {len(train_data)} < {self.sequence_length}"
+            )
+        
         scaler = MinMaxScaler()
-        train_data[self.features] = scaler.fit_transform(train_data[self.features])
+        # Convert features to float64 to match scaler output
+        train_data[self.features] = train_data[self.features].astype("float64")
+        # Assign scaled values
+        train_data.loc[:, self.features] = scaler.fit_transform(train_data[self.features])
+        
+        # Check scaled data
+        if not np.isfinite(train_data[self.features]).all().all():
+            raise ValueError("Scaled features contain NaN or Inf values")
+        
         X, y = self.create_sequences(train_data, include_target=True)
         return X, y, scaler
-
+    
     def get_prediction_data(self, scaler: MinMaxScaler) -> np.ndarray:
         """Prepare the latest sequence for prediction.
 
@@ -154,13 +189,16 @@ class DataHandler:
 
         Raises:
             FileNotFoundError: From load_data.
-            ValueError: From create_sequences.
+            ValueError: From create_sequences or if insufficient valid data.
         """
         df = self.load_data()
         latest_data = df.iloc[-self.sequence_length :].copy()
+        if latest_data[self.features].isna().any().any():
+            raise ValueError("Latest data contains NaN values in features")
         latest_data[self.features] = scaler.transform(latest_data[self.features])
         X, _ = self.create_sequences(latest_data, include_target=False)
         return X  # Shape: (1, sequence_length, num_features)
+
 
 
 class LSTMModel(nn.Module):
@@ -481,10 +519,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Temporary test code in if __name__ == "__main__":
-    data_handler = DataHandler("pickleFile.pkl")
-    df = data_handler.load_data()
-    print(df.index.min(), df.index.max())  # Should show times within 14:30:00-20:59:00
-    exit(0)
+    # data_handler = DataHandler("/Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pkl")
+    # df = data_handler.load_data()
+    # print(df.index.min(), df.index.max())  # Should show times within 14:30:00-20:59:00
+
+    # print(df["Signal"].value_counts())
+    # exit(0)
 
     if args.train:
         try:
@@ -507,7 +547,7 @@ if __name__ == "__main__":
             predictor = Predictor(
                 args.pickle_file, args.model_file, args.scaler_file, sequence_length=60
             )
-            predictor.monitor_and_predict(interval=30.0)
+            predictor.monitor_and_predict(interval=1.0)
         except (FileNotFoundError, ValueError) as e:
             print(f"Prediction failed: {e}")
             exit(1)
