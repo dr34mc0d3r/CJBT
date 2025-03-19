@@ -463,7 +463,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--pickle_file",
         type=str,
-        default="pickleFile.pickle",
+        default="pickleFile.pkl",
         help="Path to the pickle file",
     )
     parser.add_argument(
@@ -479,6 +479,12 @@ if __name__ == "__main__":
         help="Path to the scaler file",
     )
     args = parser.parse_args()
+
+    # Temporary test code in if __name__ == "__main__":
+    data_handler = DataHandler("pickleFile.pkl")
+    df = data_handler.load_data()
+    print(df.index.min(), df.index.max())  # Should show times within 14:30:00-20:59:00
+    exit(0)
 
     if args.train:
         try:
