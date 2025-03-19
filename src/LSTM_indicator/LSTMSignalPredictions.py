@@ -13,7 +13,7 @@ Grok: https://x.com/i/grok?conversation=1902371477048930615
 pip install pandas numpy torch scikit-learn joblib matplotlib optuna torch-tb-profiler
 
 Train:
-python src/LSTM_indicator/LSTMSignalPredictions.py --train --pickle_file /Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pkl --model_file /Users/chrisjackson/Desktop/DEV/python/data/model.pth --scaler_file /Users/chrisjackson/Desktop/DEV/python/data/scaler.pkl
+python src/LSTM_indicator/LSTMSignalPredictions.py --train --minority_factor 2.0 --pickle_file /Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pkl --model_file /Users/chrisjackson/Desktop/DEV/python/data/model.pth --scaler_file /Users/chrisjackson/Desktop/DEV/python/data/scaler.pkl
 
 Prediction
 python src/LSTM_indicator/LSTMSignalPredictions.py --pickle_file /Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pkl --model_file /Users/chrisjackson/Desktop/DEV/python/data/model.pth --scaler_file /Users/chrisjackson/Desktop/DEV/python/data/scaler.pkl
@@ -27,14 +27,14 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim  # Add this line
+import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 import joblib
 
 # Device configuration
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 class DataHandler:
     """Handles data loading, preprocessing, and sequence creation for LSTM.
@@ -199,8 +199,6 @@ class DataHandler:
         X, _ = self.create_sequences(latest_data, include_target=False)
         return X  # Shape: (1, sequence_length, num_features)
 
-
-
 class LSTMModel(nn.Module):
     """LSTM model for time series signal prediction.
 
@@ -243,7 +241,6 @@ class LSTMModel(nn.Module):
         out = self.fc(out[:, -1, :])  # Use the last time step
         return out
 
-
 class Trainer:
     """Handles training of the LSTM model.
 
@@ -261,6 +258,7 @@ class Trainer:
         train_loader: DataLoader,
         val_loader: DataLoader,
         learning_rate: float = 0.001,
+        class_weights: Optional[torch.Tensor] = None,
     ) -> None:
         """Initialize the Trainer.
 
@@ -269,9 +267,14 @@ class Trainer:
             train_loader: DataLoader for training data.
             val_loader: DataLoader for validation data.
             learning_rate: Learning rate for the optimizer.
+            class_weights: Optional tensor of class weights for weighted loss.
         """
         self.model = model.to(DEVICE)
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = (
+            nn.CrossEntropyLoss(weight=class_weights)
+            if class_weights is not None
+            else nn.CrossEntropyLoss()
+        )
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -294,16 +297,34 @@ class Trainer:
             total_loss += loss.item() * X_batch.size(0)
         return total_loss / len(self.train_loader.dataset)
 
-    def evaluate(self) -> Tuple[float, float]:
-        """Evaluate the model on the validation set.
+    # def evaluate(self) -> Tuple[float, float]:
+    #     """Evaluate the model on the validation set.
 
-        Returns:
-            Tuple of (average validation loss, accuracy).
-        """
+    #     Returns:
+    #         Tuple of (average validation loss, accuracy).
+    #     """
+    #     self.model.eval()
+    #     total_loss = 0.0
+    #     correct = 0
+    #     total = 0
+    #     with torch.no_grad():
+    #         for X_batch, y_batch in self.val_loader:
+    #             X_batch, y_batch = X_batch.to(DEVICE), y_batch.to(DEVICE)
+    #             outputs = self.model(X_batch)
+    #             loss = self.criterion(outputs, y_batch)
+    #             total_loss += loss.item() * X_batch.size(0)
+    #             preds = torch.argmax(outputs, dim=1)
+    #             correct += (preds == y_batch).sum().item()
+    #             total += y_batch.size(0)
+    #     avg_loss = total_loss / len(self.val_loader.dataset)
+    #     accuracy = correct / total
+    #     return avg_loss, accuracy
+    
+    def evaluate(self) -> Tuple[float, float, dict]:
         self.model.eval()
         total_loss = 0.0
-        correct = 0
-        total = 0
+        all_preds = []
+        all_labels = []
         with torch.no_grad():
             for X_batch, y_batch in self.val_loader:
                 X_batch, y_batch = X_batch.to(DEVICE), y_batch.to(DEVICE)
@@ -311,11 +332,19 @@ class Trainer:
                 loss = self.criterion(outputs, y_batch)
                 total_loss += loss.item() * X_batch.size(0)
                 preds = torch.argmax(outputs, dim=1)
-                correct += (preds == y_batch).sum().item()
-                total += y_batch.size(0)
+                all_preds.extend(preds.cpu().numpy())
+                all_labels.extend(y_batch.cpu().numpy())
         avg_loss = total_loss / len(self.val_loader.dataset)
-        accuracy = correct / total
-        return avg_loss, accuracy
+        accuracy = (np.array(all_preds) == np.array(all_labels)).mean()
+        precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average=None, labels=[0, 1, 2])
+        cm = confusion_matrix(all_labels, all_preds)
+        metrics = {
+            "precision": dict(zip(["Hold", "Buy", "Sell"], precision)),
+            "recall": dict(zip(["Hold", "Buy", "Sell"], recall)),
+            "f1": dict(zip(["Hold", "Buy", "Sell"], f1)),
+            "confusion_matrix": cm
+        }
+        return avg_loss, accuracy, metrics
 
     def train(
         self, num_epochs: int, verbose: bool = True
@@ -332,19 +361,24 @@ class Trainer:
         metrics = {"train_loss": [], "val_loss": [], "val_accuracy": []}
         for epoch in range(num_epochs):
             train_loss = self.train_epoch()
-            val_loss, val_accuracy = self.evaluate()
+            # val_loss, val_accuracy = self.evaluate()
+            val_loss, val_accuracy, val_metrics = self.evaluate()
             metrics["train_loss"].append(train_loss)
             metrics["val_loss"].append(val_loss)
             metrics["val_accuracy"].append(val_accuracy)
             if verbose:
-                print(
-                    f"Epoch {epoch + 1}/{num_epochs}, "
-                    f"Train Loss: {train_loss:.4f}, "
-                    f"Val Loss: {val_loss:.4f}, "
-                    f"Val Accuracy: {val_accuracy:.4f}"
-                )
-        return metrics
+                print(f"Epoch {epoch + 1}/{num_epochs}, "
+                    f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
+                    f"Val Accuracy: {val_accuracy:.4f}")
+                print(f"Val Metrics: {val_metrics}")
 
+                # print(
+                #     f"Epoch {epoch + 1}/{num_epochs}, "
+                #     f"Train Loss: {train_loss:.4f}, "
+                #     f"Val Loss: {val_loss:.4f}, "
+                #     f"Val Accuracy: {val_accuracy:.4f}"
+                # )
+        return metrics
 
 class Predictor:
     """Handles real-time signal prediction.
@@ -408,6 +442,7 @@ class Predictor:
             pred = torch.argmax(output, dim=1).item()
         return pred
 
+
     def monitor_and_predict(self, interval: float = 30.0) -> None:
         """Monitor the pickle file and predict signals periodically.
 
@@ -415,16 +450,20 @@ class Predictor:
             interval: Time in seconds between predictions.
         """
         print(f"Starting prediction monitoring every {interval} seconds...")
+        last_size = -1
         while True:
             try:
-                signal = self.predict_latest()
-                print(f"Predicted Signal: {signal}")
+                df = self.data_handler.load_data()
+                current_size = len(df)
+                if current_size != last_size:
+                    signal = self.predict_latest()
+                    print(f"Predicted Signal: {signal} at {pd.Timestamp.now()}")
+                    last_size = current_size
+                else:
+                    print("No new data, skipping prediction")
             except (FileNotFoundError, ValueError) as e:
                 print(f"Error during prediction: {e}")
-            except Exception as e:
-                print(f"Unexpected error: {e}")
             time.sleep(interval)
-
 
 def train_and_save(
     pickle_file: str,
@@ -436,6 +475,7 @@ def train_and_save(
     num_epochs: int = 100,
     batch_size: int = 32,
     learning_rate: float = 0.001,
+    minority_factor: float = 1.0,  # New parameter to adjust minority class weights
 ) -> None:
     """Train the model and save it along with the scaler.
 
@@ -449,18 +489,40 @@ def train_and_save(
         num_epochs: Number of training epochs.
         batch_size: Batch size for training.
         learning_rate: Learning rate for the optimizer.
+        minority_factor: Factor to multiply minority class weights (default is 1.0, no adjustment).
 
     Raises:
         FileNotFoundError: If pickle file is missing.
         ValueError: If data is insufficient.
     """
+    # Load and prepare data
     data_handler = DataHandler(pickle_file, sequence_length)
     X, y, scaler = data_handler.get_training_data()
 
-    # Split into train and validation
+    # Split into train and validation sets
     train_size = int(0.8 * len(X))
     X_train, X_val = X[:train_size], X[train_size:]
     y_train, y_val = y[:train_size], y[train_size:]
+
+    # Compute class weights
+    class_counts = np.bincount(y_train, minlength=3)
+    total_samples = len(y_train)
+    num_classes = 3
+    weights = total_samples / (num_classes * class_counts)
+    print(f"Class Counts: \n{class_counts}")
+
+
+
+    # Adjust weights for minority classes
+    if minority_factor > 1.0:
+        majority_class = np.argmax(class_counts)  # Identify the majority class (likely "Hold")
+        for cls in range(num_classes):
+            if cls != majority_class:  # Increase weights for "Buy" and "Sell"
+                weights[cls] *= minority_factor
+
+    class_weights = torch.tensor(weights, dtype=torch.float32).to(DEVICE)
+    # class_weights = torch.tensor([0.0001, 0.5, 0.5]).to(DEVICE)  # Example weights for [Hold, Buy, Sell]
+    # criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     # Create DataLoaders
     train_dataset = TensorDataset(
@@ -479,8 +541,14 @@ def train_and_save(
     output_size = 3  # Hold, Buy, Sell
     model = LSTMModel(input_size, hidden_size, num_layers, output_size)
 
-    # Train
-    trainer = Trainer(model, train_loader, val_loader, learning_rate)
+    # Train the model
+    trainer = Trainer(
+        model,
+        train_loader,
+        val_loader,
+        learning_rate,
+        class_weights=class_weights,  # Pass the adjusted weights
+    )
     trainer.train(num_epochs)
 
     # Save model and scaler
@@ -488,6 +556,80 @@ def train_and_save(
     joblib.dump(scaler, scaler_file)
     print(f"Model saved to {model_file}, Scaler saved to {scaler_file}")
 
+# def train_and_save(
+#     pickle_file: str,
+#     model_file: str,
+#     scaler_file: str,
+#     sequence_length: int = 60,
+#     hidden_size: int = 50,
+#     num_layers: int = 2,
+#     num_epochs: int = 100,
+#     batch_size: int = 32,
+#     learning_rate: float = 0.001,
+# ) -> None:
+#     """Train the model and save it along with the scaler.
+
+#     Args:
+#         pickle_file: Path to the pickle file.
+#         model_file: Path to save the trained model.
+#         scaler_file: Path to save the scaler.
+#         sequence_length: Length of sequences.
+#         hidden_size: Number of hidden units in LSTM.
+#         num_layers: Number of LSTM layers.
+#         num_epochs: Number of training epochs.
+#         batch_size: Batch size for training.
+#         learning_rate: Learning rate for the optimizer.
+
+#     Raises:
+#         FileNotFoundError: If pickle file is missing.
+#         ValueError: If data is insufficient.
+#     """
+#     data_handler = DataHandler(pickle_file, sequence_length)
+#     X, y, scaler = data_handler.get_training_data()
+
+#     # Split into train and validation
+#     train_size = int(0.8 * len(X))
+#     X_train, X_val = X[:train_size], X[train_size:]
+#     y_train, y_val = y[:train_size], y[train_size:]
+
+#     # Compute class weights
+#     class_counts = np.bincount(y_train, minlength=3)
+#     total_samples = len(y_train)
+#     num_classes = 3
+#     weights = total_samples / (num_classes * class_counts)
+#     class_weights = torch.tensor(weights, dtype=torch.float32).to(DEVICE)
+
+#     # Create DataLoaders
+#     train_dataset = TensorDataset(
+#         torch.tensor(X_train, dtype=torch.float32),
+#         torch.tensor(y_train, dtype=torch.long),
+#     )
+#     val_dataset = TensorDataset(
+#         torch.tensor(X_val, dtype=torch.float32),
+#         torch.tensor(y_val, dtype=torch.long),
+#     )
+#     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+#     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+#     # Initialize model
+#     input_size = len(data_handler.features)
+#     output_size = 3  # Hold, Buy, Sell
+#     model = LSTMModel(input_size, hidden_size, num_layers, output_size)
+
+#     # Train
+#     trainer = Trainer(
+#         model,
+#         train_loader,
+#         val_loader,
+#         learning_rate,
+#         class_weights=class_weights,
+#     )
+#     trainer.train(num_epochs)
+
+#     # Save model and scaler
+#     torch.save(model.state_dict(), model_file)
+#     joblib.dump(scaler, scaler_file)
+#     print(f"Model saved to {model_file}, Scaler saved to {scaler_file}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -516,6 +658,12 @@ if __name__ == "__main__":
         default="scaler.pkl",
         help="Path to the scaler file",
     )
+    parser.add_argument(
+        "--minority_factor",
+        type=float,
+        default=1.0,
+        help="Factor to multiply minority class weights (e.g., 2.0 or 5.0)",
+    )
     args = parser.parse_args()
 
     # Temporary test code in if __name__ == "__main__":
@@ -532,12 +680,13 @@ if __name__ == "__main__":
                 args.pickle_file,
                 args.model_file,
                 args.scaler_file,
-                sequence_length=60,
+                sequence_length=20, # 60
                 hidden_size=50,
                 num_layers=2,
                 num_epochs=100,
                 batch_size=32,
-                learning_rate=0.001,
+                learning_rate=0.0001, # .001
+                minority_factor=args.minority_factor,  # Pass the minority factor
             )
         except (FileNotFoundError, ValueError) as e:
             print(f"Training failed: {e}")
@@ -545,7 +694,10 @@ if __name__ == "__main__":
     elif os.path.exists(args.model_file):
         try:
             predictor = Predictor(
-                args.pickle_file, args.model_file, args.scaler_file, sequence_length=60
+                args.pickle_file,
+                args.model_file,
+                args.scaler_file,
+                sequence_length=60,
             )
             predictor.monitor_and_predict(interval=1.0)
         except (FileNotFoundError, ValueError) as e:
