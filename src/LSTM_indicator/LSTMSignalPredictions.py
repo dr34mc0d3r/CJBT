@@ -50,25 +50,46 @@ class DataHandler:
         self.features = ["Open", "High", "Low", "Close", "Volume", "EMA_13", "EMA_100"]
 
     def load_data(self) -> pd.DataFrame:
-        """Load DataFrame from the pickle file.
+        """Load DataFrame from the pickle file and filter by time range.
 
         Returns:
-            DataFrame with datetime index and required columns.
+            DataFrame with datetime index and required columns, filtered to times
+            between 14:30:00 and 20:59:00.
 
         Raises:
             FileNotFoundError: If the pickle file does not exist.
-            ValueError: If required columns are missing.
+            ValueError: If required columns are missing or no data remains after filtering.
         """
         try:
             df = pd.read_pickle(self.pickle_file)
         except FileNotFoundError as e:
             raise FileNotFoundError(f"Pickle file not found: {self.pickle_file}") from e
 
+        # Ensure the index is datetime
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise ValueError("DataFrame index 't' must be a DatetimeIndex")
+
+        # Extract time component from the datetime index
+        df_time = df.index.time
+        start_time = pd.Timestamp("14:30:00").time()  # 14:30:00
+        end_time = pd.Timestamp("20:59:00").time()    # 20:59:00
+
+        # Filter rows where time is between 14:30:00 and 20:59:00 (inclusive)
+        mask = (df_time >= start_time) & (df_time <= end_time)
+        filtered_df = df.loc[mask].copy()
+
+        if filtered_df.empty:
+            raise ValueError(
+                f"No data remains after filtering time range {start_time} to {end_time}"
+            )
+
+        # Verify required columns
         expected_columns = self.features + ["Signal"]
-        missing_cols = [col for col in self.features if col not in df.columns]
+        missing_cols = [col for col in self.features if col not in filtered_df.columns]
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
-        return df
+
+        return filtered_df
 
     def create_sequences(
         self, data: pd.DataFrame, include_target: bool = True
