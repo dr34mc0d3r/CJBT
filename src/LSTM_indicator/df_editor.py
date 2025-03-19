@@ -330,6 +330,10 @@ if __name__ == '__main__':
 
 
     dataManager = DataManager()
+    # add EMA indicators values to datadrame
+    dataManager.long_ema_period = 100
+    dataManager.short_ema_period = 13
+    
     root_dir = '/Users/chrisjackson/Desktop/DEV/python/data/1m/TSLA'
     dataManager.pickleFilePath = '/Users/chrisjackson/Desktop/DEV/python/CJBT/src/LSTM_indicator/pickleFile.pickle'
 
@@ -345,9 +349,7 @@ if __name__ == '__main__':
         print(f"File '{dataManager.pickleFilePath}' does not exist. Loading from CSV files")
         df = dataManager.build_df_from_directory(root_dir, 100)
 
-        # add EMA indicators values to datadrame
-        dataManager.long_ema_period = 100
-        dataManager.short_ema_period = 13
+        
         dataManager.add_ema(df, dataManager.short_ema_period, "short")
         dataManager.add_ema(df, dataManager.long_ema_period, "long")
 
