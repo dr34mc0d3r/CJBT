@@ -241,7 +241,7 @@ class StockApp:
         # Configure hover tool
         hover = HoverTool(
             tooltips=[
-                ('Date', '@date{%F}'),
+                ('Date', '@date{%F %T}'),
                 ('Open', '@open{0.2f}'),
                 ('High', '@high{0.2f}'),
                 ('Low', '@low{0.2f}'),
