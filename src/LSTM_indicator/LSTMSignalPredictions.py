@@ -166,7 +166,8 @@ class DataHandler:
             )
         
         scaler = MinMaxScaler()
-        train_data[self.features] = scaler.fit_transform(train_data[self.features])
+        # train_data[self.features] = scaler.fit_transform(train_data[self.features])
+        train_data.loc[:, self.features] = scaler.fit_transform(train_data[self.features])
         
         # Check scaled data
         if not np.isfinite(train_data[self.features]).all().all():
