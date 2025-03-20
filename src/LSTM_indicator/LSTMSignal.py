@@ -89,6 +89,53 @@ FOCAL_GAMMA = 2.0       # Focal loss gamma hyperparameter.
 VALIDATION_SPLIT = 0.2  # Fraction of dataset used for validation.
 
 
+class MaskedFocalLoss(nn.Module):
+    """
+    Masked Focal Loss that ignores 'Hold' (0) labels in loss calculation.
+    
+    Args:
+        gamma (float): Focusing parameter.
+        alpha (torch.Tensor, optional): Class weights.
+        reduction (str): 'mean' or 'sum'.
+    """
+    def __init__(self, gamma: float = 2.0, alpha: Optional[torch.Tensor] = None, reduction: str = 'mean'):
+        super(MaskedFocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+        self.reduction = reduction
+        self.ce = nn.CrossEntropyLoss(reduction='none')
+
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """
+        Compute masked focal loss.
+
+        Args:
+            inputs (torch.Tensor): Model predictions (logits), shape (batch_size, num_classes).
+            targets (torch.Tensor): Ground truth labels, shape (batch_size).
+        
+        Returns:
+            torch.Tensor: Masked focal loss.
+        """
+        ce_loss = self.ce(inputs, targets)
+        pt = torch.exp(-ce_loss)
+        focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+
+        if self.alpha is not None:
+            alpha_t = self.alpha.gather(0, targets)
+            focal_loss = alpha_t * focal_loss
+        
+        # Create mask: Only compute loss for Buy (1) and Sell (2)
+        mask = targets != 0  # Mask out 'Hold' (0)
+        focal_loss = focal_loss * mask  # Apply mask
+        
+        if self.reduction == 'mean':
+            return focal_loss.sum() / mask.sum().clamp(min=1)  # Avoid divide by zero
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        else:
+            return focal_loss
+
+
 class FocalLoss(nn.Module):
     """
     Focal Loss for multi-class classification.
@@ -216,13 +263,13 @@ def get_sampler(dataset: TradingDataset) -> WeightedRandomSampler:
                                     replacement=True)
     return sampler
 
-
 def train_model(train_loader: DataLoader, valid_loader: DataLoader, train_dataset: TradingDataset):
-    """Train the LSTM model using Focal Loss, monitoring validation loss."""
+    """Train the LSTM model using Masked Focal Loss."""
     
     model = LSTMSignal(input_size=8, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS, output_size=3).to(DEVICE)
-    class_weights = compute_class_weights(train_dataset)
-    criterion = FocalLoss(gamma=FOCAL_GAMMA, alpha=class_weights, reduction='mean')
+    # class_weights = compute_class_weights(train_dataset)
+    # criterion = MaskedFocalLoss(gamma=FOCAL_GAMMA, alpha=class_weights, reduction='mean')
+    criterion = FocalLoss(gamma=FOCAL_GAMMA, alpha=None, reduction='mean')
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
     best_val_loss = float('inf')
@@ -233,12 +280,11 @@ def train_model(train_loader: DataLoader, valid_loader: DataLoader, train_datase
         correct = 0
         total = 0
 
-        # Training loop
         for inputs, targets in train_loader:
             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
             optimizer.zero_grad()
             outputs = model(inputs)
-            loss = criterion(outputs, targets)
+            loss = criterion(outputs, targets)  # Masked loss
             loss.backward()
             optimizer.step()
             
@@ -258,7 +304,7 @@ def train_model(train_loader: DataLoader, valid_loader: DataLoader, train_datase
             for inputs, targets in valid_loader:
                 inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
                 outputs = model(inputs)
-                loss = criterion(outputs, targets)
+                loss = criterion(outputs, targets)  # Masked loss
                 val_loss += loss.item() * inputs.size(0)
                 val_correct += (outputs.argmax(1) == targets).sum().item()
                 val_total += targets.size(0)
@@ -269,13 +315,78 @@ def train_model(train_loader: DataLoader, valid_loader: DataLoader, train_datase
         logging.info(f"Epoch {epoch}/{NUM_EPOCHS} - Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}% | "
                      f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
 
-        # Save model only if validation loss improves
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            torch.save(model.state_dict(), MODEL_PATH)
-            logging.info(f"Validation loss improved; model saved to {MODEL_PATH}")
+        # if val_loss < best_val_loss:
+        #     best_val_loss = val_loss
+        #     torch.save(model.state_dict(), MODEL_PATH)
+        #     logging.info(f"Validation loss improved; model saved to {MODEL_PATH}")
+        torch.save(model.state_dict(), MODEL_PATH)
+        logging.info(f"Mdel saved to {MODEL_PATH}")
 
     return model
+
+
+
+
+
+# def train_model(train_loader: DataLoader, valid_loader: DataLoader, train_dataset: TradingDataset):
+#     """Train the LSTM model using Focal Loss, monitoring validation loss."""
+    
+#     model = LSTMSignal(input_size=8, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS, output_size=3).to(DEVICE)
+#     class_weights = compute_class_weights(train_dataset)
+#     criterion = FocalLoss(gamma=FOCAL_GAMMA, alpha=class_weights, reduction='mean')
+#     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    
+#     best_val_loss = float('inf')
+
+#     for epoch in range(1, NUM_EPOCHS + 1):
+#         model.train()
+#         total_loss = 0
+#         correct = 0
+#         total = 0
+
+#         # Training loop
+#         for inputs, targets in train_loader:
+#             inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+#             optimizer.zero_grad()
+#             outputs = model(inputs)
+#             loss = criterion(outputs, targets)
+#             loss.backward()
+#             optimizer.step()
+            
+#             total_loss += loss.item() * inputs.size(0)
+#             correct += (outputs.argmax(1) == targets).sum().item()
+#             total += targets.size(0)
+        
+#         train_loss = total_loss / total
+#         train_acc = correct / total * 100
+
+#         # Validation loop
+#         model.eval()
+#         val_loss = 0
+#         val_correct = 0
+#         val_total = 0
+#         with torch.no_grad():
+#             for inputs, targets in valid_loader:
+#                 inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+#                 outputs = model(inputs)
+#                 loss = criterion(outputs, targets)
+#                 val_loss += loss.item() * inputs.size(0)
+#                 val_correct += (outputs.argmax(1) == targets).sum().item()
+#                 val_total += targets.size(0)
+        
+#         val_loss /= val_total
+#         val_acc = val_correct / val_total * 100
+
+#         logging.info(f"Epoch {epoch}/{NUM_EPOCHS} - Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}% | "
+#                      f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+
+#         # Save model only if validation loss improves
+#         if val_loss < best_val_loss:
+#             best_val_loss = val_loss
+#             torch.save(model.state_dict(), MODEL_PATH)
+#             logging.info(f"Validation loss improved; model saved to {MODEL_PATH}")
+
+#     return model
 
 
 def evaluate_model(model, data_loader):
