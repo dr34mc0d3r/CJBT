@@ -13,7 +13,198 @@ from datetime import datetime
 import re
 
 # Extend Panel with the Bokeh backend
-pn.extension('bokeh')
+# pn.extension('bokeh')
+
+
+import pandas as pd
+import numpy as np
+
+class TechnicalIndicators:
+
+    @staticmethod
+    # New function to add the 100 EMA using pandas-ta
+    def add_ema(df, period=100, title="long"):
+        """
+        Calculates the Exponential Moving Average (EMA) for the 'Close' column
+        and adds it as a new column 'EMA_100' to the DataFrame.
+        """
+        df[f"EMA_{period}"] = ta.ema(df['Close'], length=period)
+
+        if title == "long":
+            print(f"Papa calculated the {title} {period} EMA!")
+        else:
+            print(f"Papa calculated the {title} {period} EMA!")
+
+        return df
+    
+    @staticmethod
+    def add_VWAP(df):
+        """
+        Add Volume Weighted Average Price (VWAP) to a pandas DataFrame with daily resets.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame with 'High', 'Low', 'Close', 'Volume' columns and DatetimeIndex.
+        
+        Returns:
+            pd.DataFrame: DataFrame with an added 'VWAP' column.
+        """
+        # Ensure DataFrame has required columns
+        required_columns = ['High', 'Low', 'Close', 'Volume']
+        if not all(col in df.columns for col in required_columns):
+            raise ValueError("DataFrame must contain 'High', 'Low', 'Close', and 'Volume' columns")
+        
+        # Use typical price as (High + Low + Close) / 3 for VWAP calculation
+        df['Typical_Price'] = (df['High'] + df['Low'] + df['Close']) / 3
+        
+        # Calculate Price * Volume
+        df['Price_Volume'] = df['Typical_Price'] * df['Volume']
+        
+        # Extract date from DatetimeIndex for grouping
+        df['vwapDate'] = df.index.date
+        
+        # Calculate cumulative sums within each day
+        df['Cum_Price_Volume'] = df.groupby('vwapDate')['Price_Volume'].cumsum()
+        df['Cum_Volume'] = df.groupby('vwapDate')['Volume'].cumsum()
+        
+        # Compute VWAP
+        df['VWAP'] = df['Cum_Price_Volume'] / df['Cum_Volume']
+        
+        # Clean up temporary columns
+        df.drop(columns=['Typical_Price', 'Price_Volume', 'Cum_Price_Volume', 'Cum_Volume', 'vwapDate'], inplace=True)
+        
+        return df
+    
+    @staticmethod
+    def add_RSI(df, window=14):
+        """Add Relative Strength Index (RSI) to the DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with 'Close' column.
+            window (int): Number of periods for RSI calculation (default: 14).
+
+        Returns:
+            pd.DataFrame: DataFrame with added 'RSI' column.
+        """
+        delta = df['Close'].diff()
+        gain = delta.where(delta > 0, 0)
+        loss = -delta.where(delta < 0, 0)
+        avg_gain = gain.rolling(window=window, min_periods=window).mean()
+        avg_loss = loss.rolling(window=window, min_periods=window).mean()
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        df['RSI'] = rsi
+        return df
+
+    @staticmethod
+    def add_Bollinger_Bands(df, window=20, num_std=2):
+        """Add Bollinger Bands to the DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with 'Close' column.
+            window (int): Number of periods for moving average (default: 20).
+            num_std (float): Number of standard deviations for bands (default: 2).
+
+        Returns:
+            pd.DataFrame: DataFrame with added 'BB_Middle', 'BB_Upper', 'BB_Lower', 'BBP' columns.
+        """
+        rolling_mean = df['Close'].rolling(window=window, min_periods=window).mean()
+        rolling_std = df['Close'].rolling(window=window, min_periods=window).std()
+        upper_band = rolling_mean + (rolling_std * num_std)
+        lower_band = rolling_mean - (rolling_std * num_std)
+        df['BB_Middle'] = rolling_mean
+        df['BB_Upper'] = upper_band
+        df['BB_Lower'] = lower_band
+        df['BBP'] = (df['Close'] - lower_band) / (upper_band - lower_band)
+        return df
+
+    @staticmethod
+    def add_ATR(df, window=14):
+        """Add Average True Range (ATR) to the DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with 'High', 'Low', 'Close' columns.
+            window (int): Number of periods for ATR calculation (default: 14).
+
+        Returns:
+            pd.DataFrame: DataFrame with added 'ATR' column.
+        """
+        high_low = df['High'] - df['Low']
+        high_close = np.abs(df['High'] - df['Close'].shift())
+        low_close = np.abs(df['Low'] - df['Close'].shift())
+        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        atr = true_range.rolling(window=window, min_periods=window).mean()
+        df['ATR'] = atr
+        return df
+
+    @staticmethod
+    def add_time_of_day(df, trading_minutes=390):
+        """Add cyclical time-of-day encoding to the DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with DatetimeIndex.
+            trading_minutes (int): Total trading minutes per day (default: 390, e.g., 9:30-16:00).
+
+        Returns:
+            pd.DataFrame: DataFrame with added 'Time_Sin' and 'Time_Cos' columns.
+        """
+        df['tdDate'] = df.index.date
+        df['Minute_of_Day'] = df.groupby('tdDate').cumcount()
+        normalized_time = df['Minute_of_Day'] / trading_minutes
+        df['Time_Sin'] = np.sin(2 * np.pi * normalized_time)
+        df['Time_Cos'] = np.cos(2 * np.pi * normalized_time)
+        df.drop(['tdDate', 'Minute_of_Day'], axis=1, inplace=True)
+        return df
+
+    @staticmethod
+    def add_returns(df):
+        """Add minute-to-minute returns to the DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with 'Close' column.
+
+        Returns:
+            pd.DataFrame: DataFrame with added 'Returns' column.
+        """
+        df['Returns'] = df['Close'].pct_change()
+        return df
+
+    @staticmethod
+    def add_normalized_differences(df, EMA_ColumnName):
+        """Add normalized price differences to the DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with 'Close', EMA_ColumnName, 'VWAP', 'ATR' columns.
+
+        Returns:
+            pd.DataFrame: DataFrame with added 'Norm_Diff_EMA' and 'Norm_Diff_VWAP' columns.
+        """
+        df['Norm_Diff_EMA'] = (df['Close'] - df[f"{EMA_ColumnName}"]) / df['ATR']
+        df['Norm_Diff_VWAP'] = (df['Close'] - df['VWAP']) / df['ATR']
+        return df
+
+    @staticmethod
+    def add_all_features(df, EMA_ColumnName, rsi_window=14, bb_window=20, bb_std=2, atr_window=14, trading_minutes=390):
+        """Add all technical indicators to the DataFrame in one call.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with required columns and DatetimeIndex.
+            rsi_window (int): Window for RSI (default: 14).
+            bb_window (int): Window for Bollinger Bands (default: 20).
+            bb_std (float): Standard deviations for Bollinger Bands (default: 2).
+            atr_window (int): Window for ATR (default: 14).
+            trading_minutes (int): Trading minutes per day (default: 390).
+
+        Returns:
+            pd.DataFrame: DataFrame with all new columns added.
+        """
+        df = TechnicalIndicators.add_VWAP(df)
+        df = TechnicalIndicators.add_RSI(df, window=rsi_window)
+        df = TechnicalIndicators.add_Bollinger_Bands(df, window=bb_window, num_std=bb_std)
+        df = TechnicalIndicators.add_ATR(df, window=atr_window)
+        df = TechnicalIndicators.add_time_of_day(df, trading_minutes=trading_minutes)
+        df = TechnicalIndicators.add_returns(df)
+        df = TechnicalIndicators.add_normalized_differences(df, EMA_ColumnName)
+        return df
 
 class DataManager():
     def __init__(self):
@@ -94,20 +285,7 @@ class DataManager():
 
         return large_dataframe
     
-    # New function to add the 100 EMA using pandas-ta
-    def add_ema(self, df, period=100, title="long"):
-        """
-        Calculates the Exponential Moving Average (EMA) for the 'Close' column
-        and adds it as a new column 'EMA_100' to the DataFrame.
-        """
-        df[f"EMA_{period}"] = ta.ema(df['Close'], length=period)
-
-        if title == "long":
-            print(f"Papa calculated the {title} {period} EMA!")
-        else:
-            print(f"Papa calculated the {title} {period} EMA!")
-
-        return df
+    
     
     def save_dataframe_as_pickle(self, df):
         """
@@ -170,9 +348,13 @@ class StockApp:
         self.selected_date = None
         
         
-        # Ensure 'Signal' column exists (defaulting to 0)
-        if 'Signal' not in self.df.columns:
-            self.df['Signal'] = 0
+        # Ensure 'BuySignal' column exists (defaulting to 0)
+        if 'BuySignal' not in self.df.columns:
+            self.df['BuySignal'] = 0
+
+        # Ensure 'SellSignal' column exists (defaulting to 0)
+        if 'SellSignal' not in self.df.columns:
+            self.df['SellSignal'] = 0
         
         # Create a ColumnDataSource for the "Close" price line
         self.source = ColumnDataSource(data={
@@ -182,25 +364,51 @@ class StockApp:
             'low': self.df['Low'],
             'close': self.df['Close'],
             f"EMA_{self.dataManager.short_ema_period}": self.df[f"EMA_{self.dataManager.short_ema_period}"],
-            f"EMA_{self.dataManager.long_ema_period}": self.df[f"EMA_{self.dataManager.long_ema_period}"]
+            f"EMA_{self.dataManager.long_ema_period}": self.df[f"EMA_{self.dataManager.long_ema_period}"],
+            f"VWAP": self.df["VWAP"],
+            f"BB_Upper": self.df["BB_Upper"],
+            f"BB_Middle": self.df["BB_Middle"],
+            f"BB_Lower": self.df["BB_Lower"],
+            f"BBP": self.df["BBP"],
+            f"RSI": self.df["RSI"],
+            f"ATR": self.df["ATR"],
+            f"Time_Sin": self.df["Time_Sin"],
+            f"Time_Cos": self.df["Time_Cos"],
+            f"Returns": self.df["Returns"],
+            f"Norm_Diff_EMA": self.df["Norm_Diff_EMA"],
+            f"Norm_Diff_VWAP": self.df["Norm_Diff_VWAP"]
         })
+
+
+
         
-        # Create a ColumnDataSource for the "Signal" line (only non-zero signals)
-        self.signal_source = ColumnDataSource(data=self.get_signal_data())
+        # Create a ColumnDataSource for the "BuySignal" line
+        self.buy_signal_source = ColumnDataSource(data=self.Buy_get_signal_data())
+
+        # Create a ColumnDataSource for the "SellSignal" line
+        self.sell_signal_source = ColumnDataSource(data=self.Sell_get_signal_data())
         
         # Build the Bokeh plot
         self.plot = self.create_plot()
         
         # Create interactive Panel widgets
         self.html_pane = pn.pane.HTML("<b>Click on the chart to select a date!</b>", width=400)
-        self.text_input = pn.widgets.TextInput(name="Your Comment", placeholder="Type your comment here...")
-        # Radio button options: 0 Hold, 1 Buy, 2 Sell (signal values to add)
-        self.radio_button_group = pn.widgets.RadioButtonGroup(name="Signal Value", options=[0, 1, 2], button_type="success")
-        self.submit_button = pn.widgets.Button(name="Submit", button_type="primary")
-        self.submit_button.on_click(self.on_submit)
 
-        self.save_button = pn.widgets.Button(name="Save", button_type="primary")
-        self.save_button.on_click(self.on_save)
+        # Radio button options: 0 NotBuy, 1 Buy (buy signal values to add)
+        self.Buy_radio_button_group = pn.widgets.RadioButtonGroup(name="Buy_Signal Value", options=[0, 1], button_type="success")
+        self.Buy_submit_button = pn.widgets.Button(name="Buy_Submit", button_type="primary")
+        self.Buy_submit_button.on_click(self.Buy_on_submit)
+
+        self.Buy_save_button = pn.widgets.Button(name="Buy_Save", button_type="primary")
+        self.Buy_save_button.on_click(self.Buy_on_save)
+
+        # Radio button options: 0 NotSell, 1 Sell (buy signal values to add)
+        self.Sell_radio_button_group = pn.widgets.RadioButtonGroup(name="Sell_Signal Value", options=[0, 1], button_type="success")
+        self.Sell_submit_button = pn.widgets.Button(name="Sell_Submit", button_type="primary")
+        self.Sell_submit_button.on_click(self.Sell_on_submit)
+
+        self.Sell_save_button = pn.widgets.Button(name="Sell_Save", button_type="primary")
+        self.Sell_save_button.on_click(self.Sell_on_save)
         
         # Compose the layout:
         # 1. The Bokeh chart on top.
@@ -209,26 +417,109 @@ class StockApp:
         self.layout = pn.Column(
             self.plot,
             pn.Row(self.html_pane),
-            pn.Row(self.text_input, self.radio_button_group, self.submit_button, self.save_button)
+            pn.Row(self.Buy_radio_button_group, self.Buy_submit_button, self.Buy_save_button),
+            pn.Row(self.Sell_radio_button_group, self.Sell_submit_button, self.Sell_save_button)
         )
 
+    def get_color(self, colorIndex, background=True):
+        # List of pastel colors for black background
+        black_bg_colors = [
+            (173, 216, 230),  # Light pastel blue
+            (240, 182, 187),  # Soft pastel pink
+            (144, 238, 144),  # Pale pastel green
+            (255, 218, 185),  # Peach pastel
+            (221, 160, 221),  # Pastel plum
+            (176, 224, 230),  # Powder blue pastel
+            (245, 245, 220),  # Creamy beige pastel
+            (152, 251, 152),  # Mint pastel green
+            (255, 192, 203),  # Baby pink pastel
+            (230, 230, 250),  # Lavender pastel
+            (173, 255, 47),   # Pastel lime green
+            (240, 230, 140),  # Pale pastel yellow
+            (175, 238, 238),  # Turquoise pastel
+            (255, 228, 225),  # Misty rose pastel
+            (147, 197, 114)   # Sage pastel green
+        ]
+        
+        # List of slightly darker colors for white background
+        white_bg_colors = [
+            (70, 130, 180),   # Steel blue
+            (220, 80, 100),   # Soft red
+            (60, 179, 113),   # Medium sea green
+            (255, 165, 79),   # Orange
+            (186, 85, 211),   # Medium orchid
+            (100, 149, 237),  # Cornflower blue
+            (189, 183, 107),  # Dark khaki
+            (50, 205, 50),    # Lime green
+            (255, 105, 180),  # Hot pink
+            (147, 112, 219),  # Medium purple
+            (154, 205, 50),   # Yellow-green
+            (218, 165, 32),   # Goldenrod
+            (64, 224, 208),   # Turquoise
+            (255, 99, 71),    # Tomato
+            (107, 142, 35)    # Olive drab
+        ]
+        
+        # Select the appropriate color list based on background
+        if background:  # True for black background
+            colors = black_bg_colors
+        else:  # False for white background
+            colors = white_bg_colors
+        
+        # Return the color at the specified index, wrapping around if index exceeds list length
+        return colors[colorIndex % len(colors)]
 
-    def get_signal_data(self):
-        """Return dictionary data for non-zero Signal values for plotting with an offset (Close + Signal)."""
-        df_signal = self.df[self.df['Signal'] != 0]
+
+    def Buy_get_signal_data(self):
+        """Return dictionary data for non-zero BuySignal values for plotting with an offset (Close + Signal)."""
+        df_signal = self.df[self.df['BuySignal'] != 0]
         return {
             'date': list(df_signal.index),
             'offset': list(df_signal['Close']),
             # Convert signal values to strings
-            'signal': list(df_signal['Signal'].astype(str))
+            'buy_signal': list(df_signal['BuySignal'].astype(str))
+        }
+    
+    def Sell_get_signal_data(self):
+        """Return dictionary data for non-zero SellSignal values for plotting with an offset (Close + Signal)."""
+        df_signal = self.df[self.df['SellSignal'] != 0]
+        return {
+            'date': list(df_signal.index),
+            'offset': list(df_signal['Close']),
+            # Convert signal values to strings
+            'sell_signal': list(df_signal['SellSignal'].astype(str))
         }
 
     def create_plot(self):
         """Create the Bokeh plot with OHLCV 'Close' line and the 'Signal' line."""
-        p = figure(x_axis_type="datetime", title="OHLCV Data", height=400, width=800)
+        p = figure(x_axis_type="datetime", title="OHLCV Data", height=800, width=1200, sizing_mode="stretch_both")
+
+
+        # Plot dots on the chart for 1 buy signals
+        p.scatter(
+            x='date', 
+            y='offset', 
+            source=self.buy_signal_source, 
+            size=20, 
+            color=(59, 161, 8), 
+            marker="circle",  # Explicitly set marker type to circle
+            name="buy_signal_circles"
+        )
+
+        # Plot dots on the chart for 1 sell signals
+        p.scatter(
+            x='date', 
+            y='offset', 
+            source=self.sell_signal_source, 
+            size=20, 
+            color=(161, 8, 130), 
+            marker="circle",  # Explicitly set marker type to circle
+            name="sell_signal_circles"
+        )
+        
 
         # Plot the Close Price as a blue line
-        p.line('date', 'close', source=self.source, line_width=2, color=(173, 173, 173), legend_label="Close Price")
+        p.line('date', 'close', source=self.source, line_width=2, color=(0, 0, 0), legend_label="Close Price")
 
         # Plot the df[f"EMA_{period}"]
         short_ema_period_column_name = f"EMA_{self.dataManager.short_ema_period}"
@@ -236,6 +527,33 @@ class StockApp:
 
         long_ema_period_column_name = f"EMA_{self.dataManager.long_ema_period}"
         p.line('date', long_ema_period_column_name, source=self.source, line_width=2, color=(52, 110, 235), legend_label=long_ema_period_column_name)
+
+
+        # Plot the VWAP
+        p.line('date', 'VWAP', source=self.source, line_width=2, color=self.get_color(7, False), legend_label="VWAP")
+        # Plot the BB_Upper
+        p.line('date', 'BB_Upper', source=self.source, line_width=2, color=self.get_color(8, False), legend_label="BB_Upper")
+        # Plot the BB_Middle
+        p.line('date', 'BB_Middle', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="BB_Middle")
+        # Plot the BB_Lower
+        p.line('date', 'BB_Lower', source=self.source, line_width=2, color=self.get_color(10, False), legend_label="BB_Lower")
+        # Plot the BBP
+        p.line('date', 'BBP', source=self.source, line_width=2, color=self.get_color(11, False), legend_label="BBP")
+
+        # Plot the RSI
+        p.line('date', 'RSI', source=self.source, line_width=2, color=self.get_color(0, False), legend_label="RSI")
+        # Plot the ATR
+        p.line('date', 'ATR', source=self.source, line_width=2, color=self.get_color(1, False), legend_label="ATR")
+        # Plot the Time_Sin
+        p.line('date', 'Time_Sin', source=self.source, line_width=2, color=self.get_color(2, False), legend_label="Time_Sin")
+        # Plot the Time_Cos
+        p.line('date', 'Time_Cos', source=self.source, line_width=2, color=self.get_color(3, False), legend_label="Time_Cos")
+        # Plot the Returns
+        p.line('date', 'Returns', source=self.source, line_width=2, color=self.get_color(4, False), legend_label="Returns")
+        # Plot the Norm_Diff_EMA
+        p.line('date', 'Norm_Diff_EMA', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="Norm_Diff_EMA")
+        # Plot the Norm_Diff_VWAP
+        p.line('date', 'Norm_Diff_VWAP', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="Norm_Diff_VWAP")
 
 
         # Configure hover tool
@@ -258,15 +576,13 @@ class StockApp:
         # Add hover tool to plot
         p.add_tools(hover)
         
-        # Plot dots on the chart for 1, 2 signals
-        p.circle(
-            'date', 'offset', source=self.signal_source, size=8,
-            color=factor_cmap('signal', palette=['red', 'blue'], factors=["1", "2"]),
-            name="signal_circles"
-        )
+        
         
         # Add an event listener for tap (click) events on the chart
         p.on_event(Tap, self.on_plot_click)
+
+        # Enable clicking to hide/show lines
+        p.legend.click_policy = "hide"
         
         p.legend.location = "top_left"
         return p
@@ -282,36 +598,68 @@ class StockApp:
         self.html_pane.object = f"<b>Selected Date:</b> {closest_date}"
         print(f"Chart clicked at: {closest_date}")  # Log to the Python console
 
-    def on_submit(self, event):
-        """Handle the Submit button click: update Signal and refresh the plot."""
+    def Buy_on_submit(self, event):
+        """Handle the Buy Submit button click: update BuySignal and refresh the plot."""
         if self.selected_date is None:
             self.html_pane.object = "<b>Please click on the chart to select a date first!</b>"
             return
         
-        text_value = self.text_input.value
-        radio_value = self.radio_button_group.value  # This will be -1 or 1 based on selection
+        Buy_radio_value = self.Buy_radio_button_group.value  # This will be 0 or 1 based on selection
         
         # Print the selected date, text input, and radio button value to the console
-        print(f"Submitted - Date: {self.selected_date}, Text: {text_value}, Radio: {radio_value}")
+        print(f"Buy Submitted - Date: {self.selected_date}, Radio: {Buy_radio_value}")
         
-        # Update the Signal column by adding the radio value to the selected date's Signal
+        # Update the BuySignal column by adding the radio value to the selected date's BuySignal
         if self.selected_date in self.df.index:
-            self.df.loc[self.selected_date, 'Signal'] = radio_value
+            self.df.loc[self.selected_date, 'BuySignal'] = Buy_radio_value
+        else:
+            print("Selected date not in DataFrame!")
+        
+        # Refresh the buy signal data source so that the plot updates accordingly
+        self.buy_signal_source.data = self.Buy_get_signal_data()
+
+        # Refresh the sell signal data source so that the plot updates accordingly
+        self.sell_signal_source.data = self.Sell_get_signal_data()
+        
+        # Optionally update the plot title to reflect changes
+        self.plot.title.text = "OHLCV Data (Updated with Signal)"
+
+    def Sell_on_submit(self, event):
+        """Handle the Sell Submit button click: update SellSignal and refresh the plot."""
+        if self.selected_date is None:
+            self.html_pane.object = "<b>Please click on the chart to select a date first!</b>"
+            return
+        
+        Sell_radio_value = self.Sell_radio_button_group.value  # This will be 0 or 1 based on selection
+        
+        # Print the selected date, text input, and radio button value to the console
+        print(f"Sell Submitted - Date: {self.selected_date}, Radio: {Sell_radio_value}")
+        
+        # Update the BuySignal column by adding the radio value to the selected date's BuySignal
+        if self.selected_date in self.df.index:
+            self.df.loc[self.selected_date, 'SellSignal'] = Sell_radio_value
         else:
             print("Selected date not in DataFrame!")
         
         # Refresh the signal data source so that the plot updates accordingly
-        self.signal_source.data = self.get_signal_data()
+        self.sell_signal_source.data = self.Sell_get_signal_data()
         
         # Optionally update the plot title to reflect changes
         self.plot.title.text = "OHLCV Data (Updated with Signal)"
         
-        # Clear the text input for the next entry
-        self.text_input.value = ""
 
-    def on_save(self, event):
+    def Buy_on_save(self, event):
         """Handle the Save button click: Output final df to console for validation."""
-        filtered_df = self.df[self.df['Signal'].isin([1, 2])]
+        filtered_df = self.df[self.df['BuySignal'].isin([0, 1])]
+        print(filtered_df)
+        print(self.df)
+
+        # Save dataframe to file
+        self.dataManager.save_dataframe_as_pickle(self.df)
+
+    def Sell_on_save(self, event):
+        """Handle the Save button click: Output final df to console for validation."""
+        filtered_df = self.df[self.df['SellSignal'].isin([0, 1])]
         print(filtered_df)
         print(self.df)
 
@@ -330,6 +678,7 @@ if __name__ == '__main__':
 
 
     dataManager = DataManager()
+    technicalIndicators = TechnicalIndicators()
     # add EMA indicators values to datadrame
     dataManager.long_ema_period = 100
     dataManager.short_ema_period = 13
@@ -347,11 +696,14 @@ if __name__ == '__main__':
 
     else:
         print(f"File '{dataManager.pickleFilePath}' does not exist. Loading from CSV files")
-        df = dataManager.build_df_from_directory(root_dir, 100)
+        df = dataManager.build_df_from_directory(root_dir, 10)
 
         
-        dataManager.add_ema(df, dataManager.short_ema_period, "short")
-        dataManager.add_ema(df, dataManager.long_ema_period, "long")
+        technicalIndicators.add_ema(df, dataManager.short_ema_period, "short")
+        technicalIndicators.add_ema(df, dataManager.long_ema_period, "long")
+
+        
+        technicalIndicators.add_all_features(df, "EMA_13")
 
     app = StockApp(df, dataManager)
 
