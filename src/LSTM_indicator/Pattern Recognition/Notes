@@ -1,0 +1,33 @@
+
+
+Prompt Parts:
+
+I have a dataframe containing 1 day 1 minuet for approximately the past 5 years. Constructed of 338000 rows  of OHLCV data.
+
+In OOP Python using torch, pandas, sklearn, numpy. Write a single file containing code for 
+
+
+
+Grok:
+6. Pattern Recognition
+Use Case: Detecting chart patterns (e.g., head and shoulders, double tops) for technical trading.
+
+How It Works: CNNs in PyTorch can be trained on candlestick charts or time series data to recognize patterns associated with reversals or continuations.
+
+Signals: 
+Buy: Detection of a bullish pattern (e.g., inverse head and shoulders).
+
+Sell: Detection of a bearish pattern (e.g., double top).
+
+Example: A CNN scans a price chart image and identifies a breakout pattern, triggering a buy signal.
+
+
+DeepSeek:
+5. Pattern Recognition in Technical Indicators
+Goal: Identify complex patterns in technical indicators.
+
+Models: CNNs or Attention-based networks.
+
+Use Case: Train a model to recognize chart patterns (e.g., head-and-shoulders, double tops) or divergences in indicators.
+
+Example: CNN detects a bullish divergence in RSI → buy signal.
