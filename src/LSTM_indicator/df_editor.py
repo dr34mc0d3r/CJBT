@@ -1,5 +1,12 @@
 """df_editor allows you to download alpaca stock data to csv files"""
 
+import os
+from datetime import datetime
+import re
+
+# https://business-science.github.io/pytimetk/reference/
+import pytimetk as tk
+
 import numpy as np
 import pandas_ta as ta
 import pandas as pd
@@ -8,9 +15,7 @@ from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, HoverTool
 from bokeh.events import Tap
 from bokeh.transform import factor_cmap
-import os
-from datetime import datetime
-import re
+
 
 # Extend Panel with the Bokeh backend
 # pn.extension('bokeh')
@@ -167,6 +172,211 @@ class TechnicalIndicators:
         """
         df['Returns'] = df['Close'].pct_change()
         return df
+    
+    @staticmethod
+    def add_lagged_returns(df, lags=[1, 2, 3, 4, 5]):
+        """
+        Add lagged returns from previous time steps to a pandas DataFrame.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame with a 'Close' column.
+            lags (list): List of integers representing the number of time steps to lag (default: [1, 2, 3]).
+        
+        Returns:
+            pd.DataFrame: DataFrame with added columns 'Returns_Lag1', 'Returns_Lag2', etc.
+        """
+        # Ensure DataFrame has the required 'Close' column
+        if 'Close' not in df.columns:
+            raise ValueError("DataFrame must contain a 'Close' column")
+        
+        # Calculate minute-to-minute returns
+        df['Returns'] = df['Close'].pct_change()
+        
+        # Add lagged returns for each specified lag
+        for lag in lags:
+            if lag <= 0:
+                raise ValueError("Lags must be positive integers")
+            df[f'Returns_Lag{lag}'] = df['Returns'].shift(lag)
+        
+        # Optionally, drop the 'Returns' column if you only want the lagged versions
+        # df.drop(columns=['Returns'], inplace=True)  # Uncomment if desired
+        
+        return df
+    
+    @staticmethod
+    def add_lagged_price_changes(df, lags=[1, 2, 3]):
+        """
+        Add lagged price changes (e.g., Close(t) - Close(t-1), High(t) - Low(t-1)) to a pandas DataFrame.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame with 'Close', 'High', and 'Low' columns.
+            lags (list): List of integers representing the number of time steps to lag (default: [1, 2, 3]).
+        
+        Returns:
+            pd.DataFrame: DataFrame with added columns like 'Close_Diff_Lag1', 'High_Low_Diff_Lag1', etc.
+        """
+        # Ensure DataFrame has required columns
+        required_columns = ['Close', 'High', 'Low']
+        if not all(col in df.columns for col in required_columns):
+            raise ValueError("DataFrame must contain 'Close', 'High', and 'Low' columns")
+        
+        # Add lagged price changes for each specified lag
+        for lag in lags:
+            if lag <= 0:
+                raise ValueError("Lags must be positive integers")
+            
+            # Close(t) - Close(t-lag): Change in closing price over lag periods
+            df[f'Close_Diff_Lag{lag}'] = df['Close'] - df['Close'].shift(lag)
+            
+            # High(t) - Low(t-lag): Difference between current high and lagged low
+            df[f'High_Low_Diff_Lag{lag}'] = df['High'] - df['Low'].shift(lag)
+        
+        return df
+    
+    @staticmethod
+    def add_lagged_indicators(df, indicators, lags=[1, 2, 3]):
+        """
+        Add lagged values of specified indicators to a pandas DataFrame.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame containing the indicator columns.
+            indicators (list): List of column names (e.g., ['EMA', 'RSI']) to lag.
+            lags (list): List of integers representing the number of time steps to lag (default: [1, 2, 3]).
+        
+        Returns:
+            pd.DataFrame: DataFrame with added columns like 'EMA_Lag1', 'RSI_Lag1', etc.
+        """
+        # Ensure DataFrame has the specified indicator columns
+        missing_cols = [col for col in indicators if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"DataFrame is missing the following indicator columns: {missing_cols}")
+        
+        # Add lagged values for each indicator and lag
+        for indicator in indicators:
+            for lag in lags:
+                if lag <= 0:
+                    raise ValueError("Lags must be positive integers")
+                # Create lagged column (e.g., 'EMA_Lag1')
+                df[f'{indicator}_Lag{lag}'] = df[indicator].shift(lag)
+        
+        return df
+    
+    @staticmethod
+    def add_roc(df, window=5):
+        """
+        Add Rate of Change (ROC) to a pandas DataFrame based on the Close price.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame with a 'Close' column.
+            window (int): Number of time steps over which to calculate ROC (default: 5).
+        
+        Returns:
+            pd.DataFrame: DataFrame with an added 'ROC' column.
+        """
+        # Ensure DataFrame has the required 'Close' column
+        if 'Close' not in df.columns:
+            raise ValueError("DataFrame must contain a 'Close' column")
+        
+        if window <= 0:
+            raise ValueError("Window must be a positive integer")
+        
+        # Calculate ROC: ((Close_t / Close_{t-window}) - 1) * 100
+        df['ROC'] = ((df['Close'] / df['Close'].shift(window)) - 1) * 100
+        
+        return df
+    
+    @staticmethod
+    def add_macd(df, fast_window=12, slow_window=26):
+        """
+        Add MACD (Moving Average Convergence Divergence) to a pandas DataFrame.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame with a 'Close' column.
+            fast_window (int): Period for the short-term EMA (default: 13).
+            slow_window (int): Period for the long-term EMA (default: 100).
+        
+        Returns:
+            pd.DataFrame: DataFrame with added 'EMA_short', 'EMA_long', and 'MACD' columns.
+        """
+        # Ensure DataFrame has the required 'Close' column
+        if 'Close' not in df.columns:
+            raise ValueError("DataFrame must contain a 'Close' column")
+        
+        if fast_window <= 0 or slow_window <= 0 or fast_window >= slow_window:
+            raise ValueError("Windows must be positive integers, and fast_window must be less than slow_window")
+        
+        # Calculate short-term EMA
+        df['EMA_short'] = df['Close'].ewm(span=fast_window, adjust=False).mean()
+        
+        # Calculate long-term EMA
+        df['EMA_long'] = df['Close'].ewm(span=slow_window, adjust=False).mean()
+        
+        # Calculate MACD as the difference between short-term and long-term EMAs
+        df['MACD'] = df['EMA_short'] - df['EMA_long']
+        
+        return df
+    
+    @staticmethod
+    def add_volatility_volume_spikes(df, atr_window=14, volume_ma_window=5):
+        """
+        Add Volume Change and ATR Ratio to a pandas DataFrame to capture volatility and volume spikes.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame with 'High', 'Low', 'Close', and 'Volume' columns.
+            atr_window (int): Period for ATR calculation (default: 14).
+            volume_ma_window (int): Period for short-term volume moving average (default: 5).
+        
+        Returns:
+            pd.DataFrame: DataFrame with added 'Volume_Change', 'Volume_MA', and 'ATR_Ratio' columns.
+        """
+        # Ensure DataFrame has required columns
+        required_columns = ['High', 'Low', 'Close', 'Volume']
+        if not all(col in df.columns for col in required_columns):
+            raise ValueError("DataFrame must contain 'High', 'Low', 'Close', and 'Volume' columns")
+        
+        if atr_window <= 0 or volume_ma_window <= 0:
+            raise ValueError("Window parameters must be positive integers")
+        
+        # Calculate Volume Change: Volume(t) - Volume(t-1)
+        df['Volume_Change'] = df['Volume'].diff()
+        
+        # Calculate short-term Volume Moving Average
+        df['Volume_MA'] = df['Volume'].rolling(window=volume_ma_window, min_periods=1).mean()
+        
+        # Calculate ATR (Average True Range)
+        high_low = df['High'] - df['Low']
+        high_close = (df['High'] - df['Close'].shift()).abs()
+        low_close = (df['Low'] - df['Close'].shift()).abs()
+        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        df['ATR'] = true_range.rolling(window=atr_window, min_periods=1).mean()
+        
+        # Calculate ATR Ratio: ATR / Close
+        df['ATR_Ratio'] = df['ATR'] / df['Close']
+        
+        # Optional: Drop temporary ATR column if not needed separately
+        # df.drop(columns=['ATR'], inplace=True)  # Uncomment if desired
+        
+        return df
+    
+    @staticmethod
+    def add_day_of_week(df):
+        """
+        Add Day of the Week as a feature to a pandas DataFrame.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame with a DatetimeIndex.
+        
+        Returns:
+            pd.DataFrame: DataFrame with an added 'DayOfWeek' column (0 = Monday, 6 = Sunday).
+        """
+        # Ensure the index is a DatetimeIndex
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise ValueError("DataFrame index must be a DatetimeIndex")
+        
+        # Extract day of the week (0 = Monday, 6 = Sunday)
+        df['DayOfWeek'] = df.index.dayofweek
+        
+        return df
 
     @staticmethod
     def add_normalized_differences(df, EMA_ColumnName):
@@ -203,7 +413,14 @@ class TechnicalIndicators:
         df = TechnicalIndicators.add_ATR(df, window=atr_window)
         df = TechnicalIndicators.add_time_of_day(df, trading_minutes=trading_minutes)
         df = TechnicalIndicators.add_returns(df)
-        df = TechnicalIndicators.add_normalized_differences(df, EMA_ColumnName)
+        df = TechnicalIndicators.add_lagged_returns(df, lags=[1, 2, 3, 4, 5])
+        df = TechnicalIndicators.add_lagged_price_changes(df, lags=[1, 2, 3, 4, 5])
+        df = TechnicalIndicators.add_lagged_indicators(df, ['BuySignal', 'SellSignal'], lags=[1, 2, 3, 4, 5])
+        df = TechnicalIndicators.add_roc(df, window=5)
+        df = TechnicalIndicators.add_macd(df, fast_window=12, slow_window=26)
+        df = TechnicalIndicators.add_volatility_volume_spikes(df, atr_window=14, volume_ma_window=5)
+        df = TechnicalIndicators.add_day_of_week(df)
+        # df = TechnicalIndicators.add_normalized_differences(df, EMA_ColumnName)
         return df
 
 class DataManager():
@@ -258,7 +475,7 @@ class DataManager():
                 if break_out_after_counter > break_out_after:
                     break
 
-                print(f"Loading CSV for {path}")
+                # print(f"Loading CSV for {path}")
                 df = self.stocks_data(path)
                 dataframes.append(df)
                 break_out_after_counter += 1
@@ -516,7 +733,7 @@ class StockApp:
             marker="circle",  # Explicitly set marker type to circle
             name="sell_signal_circles"
         )
-        
+
 
         # Plot the Close Price as a blue line
         p.line('date', 'close', source=self.source, line_width=2, color=(0, 0, 0), legend_label="Close Price")
@@ -680,30 +897,35 @@ if __name__ == '__main__':
     dataManager = DataManager()
     technicalIndicators = TechnicalIndicators()
     # add EMA indicators values to datadrame
-    dataManager.long_ema_period = 100
-    dataManager.short_ema_period = 13
+    # dataManager.long_ema_period = 100
+    # dataManager.short_ema_period = 13
 
     root_dir = '/Users/chrisjackson/Desktop/DEV/python/data/1m/TSLA'
     dataManager.pickleFilePath = '/Users/chrisjackson/Desktop/DEV/python/data/pickleFile.pkl'
 
     # set EMA Short and Long Periods for the EMA indicators
-    short_ema_period, long_ema_period = [13, 100]
+    # short_ema_period, long_ema_period = [13, 100]
 
     df = dataManager.load_dataframe_from_pickle(dataManager.pickleFilePath)
 
     if df is not None:
         print(f"Loading data from File '{dataManager.pickleFilePath}'")
 
+        print(df.info(), df.columns)
+        # df.glimpse()
+
     else:
         print(f"File '{dataManager.pickleFilePath}' does not exist. Loading from CSV files")
-        df = dataManager.build_df_from_directory(root_dir, 10)
+        df = dataManager.build_df_from_directory(root_dir, 100000)
 
-        
-        technicalIndicators.add_ema(df, dataManager.short_ema_period, "short")
-        technicalIndicators.add_ema(df, dataManager.long_ema_period, "long")
+        df = df.drop(columns=['VolumeWeighted'])
 
-        
-        technicalIndicators.add_all_features(df, "EMA_13")
+        # technicalIndicators.add_ema(df, dataManager.short_ema_period, "short")
+        # technicalIndicators.add_ema(df, dataManager.long_ema_period, "long")
+
+        technicalIndicators.add_all_features(df)
+
+        print(df.info(), df.columns)
 
     app = StockApp(df, dataManager)
 
