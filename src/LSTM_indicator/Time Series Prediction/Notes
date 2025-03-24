@@ -1,0 +1,61 @@
+
+
+Grok:
+1. Time Series Prediction
+Use Case: Predicting future stock prices, indices, or asset values based on historical price data.
+
+How It Works: Recurrent Neural Networks (RNNs), Long Short-Term Memory networks (LSTMs), or Temporal Convolutional Networks (TCNs) built in PyTorch can model sequential data. These models analyze patterns in historical price movements, trading volume, or volatility to forecast future prices.
+
+Signals: 
+Buy: Predicted price exceeds a threshold above the current price.
+
+Sell: Predicted price drops below a threshold or indicates a peak.
+
+Example: An LSTM processes daily closing prices and outputs a predicted price for the next day, triggering a buy if the prediction suggests an upward trend.
+
+DeepSeek:
+1. Time Series Forecasting
+Goal: Predict future price movements using historical data.
+
+Models: LSTMs, GRUs, or Transformers.
+
+Use Case: Train a model on historical OHLC (Open-High-Low-Close) data, volume, and technical indicators (e.g., RSI, MACD) to forecast prices. Signals are generated based on predicted upward/downward trends.
+
+Example: An LSTM predicts a 5% price increase over the next 24 hours → buy signal.
+
+
+
+
+
+
+
+LSTM Time Series Prediction analyze patterns in historical price movements, trading volume, or volatility to forecast future bullish trends.
+
+Use the following functionalities:
+- Preform normalization on the data.
+- Handle NaN values in the dataframe.
+- Sliding window for the samples.
+- Prints Epoch, Train Loss, Train Acc, Val Loss, Val Acc 
+    as training progresses.
+- Add a function final_metrics that prints Precision, Recall, 
+    F1 Score, Accuracy, Confusion Matrix if these apply to this project.
+
+I need all classes and functions to contain documentation / notes for understanding.
+
+
+
+
+
+
+
+
+I have a pickle file containing a dataframe of 1 day 1 minuet for approximately the past 5 years. Constructed of 338000 rows  of "Open", "High", "Low", "Close", "Volume" data. In OOP Python using torch, pandas, sklearn, numpy. Write a single file containing code for an LSTM Time Series Prediction to analyze patterns in historical price movements, trading volume, or volatility to forecast future bullish trends.Use the following functionalities:Preform normalization on the data.
+Handle NaN values in the dataframe.
+Sliding window for the samples.
+Prints Epoch, Train Loss, Train Acc, Val Loss, Val Acc 
+  as training progresses.
+Add a function final_metrics that prints Precision, Recall, 
+  F1 Score, Accuracy, Confusion Matrix if these apply to this project.
+
+If there is something im missing, let me know and also include it into the code.I need all classes and functions to contain documentation / notes for understanding.
+
