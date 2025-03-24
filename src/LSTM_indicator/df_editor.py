@@ -306,13 +306,13 @@ class TechnicalIndicators:
             raise ValueError("Windows must be positive integers, and fast_window must be less than slow_window")
         
         # Calculate short-term EMA
-        df['EMA_short'] = df['Close'].ewm(span=fast_window, adjust=False).mean()
+        df['MACD_EMA_short'] = df['Close'].ewm(span=fast_window, adjust=False).mean()
         
         # Calculate long-term EMA
-        df['EMA_long'] = df['Close'].ewm(span=slow_window, adjust=False).mean()
+        df['MACD_EMA_long'] = df['Close'].ewm(span=slow_window, adjust=False).mean()
         
         # Calculate MACD as the difference between short-term and long-term EMAs
-        df['MACD'] = df['EMA_short'] - df['EMA_long']
+        df['MACD'] = df['MACD_EMA_short'] - df['MACD_EMA_long']
         
         return df
     
@@ -393,7 +393,7 @@ class TechnicalIndicators:
         return df
 
     @staticmethod
-    def add_all_features(df, EMA_ColumnName, rsi_window=14, bb_window=20, bb_std=2, atr_window=14, trading_minutes=390):
+    def add_all_features(df, rsi_window=14, bb_window=20, bb_std=2, atr_window=14, trading_minutes=390):
         """Add all technical indicators to the DataFrame in one call.
 
         Parameters:
@@ -415,20 +415,19 @@ class TechnicalIndicators:
         df = TechnicalIndicators.add_returns(df)
         df = TechnicalIndicators.add_lagged_returns(df, lags=[1, 2, 3, 4, 5])
         df = TechnicalIndicators.add_lagged_price_changes(df, lags=[1, 2, 3, 4, 5])
-        df = TechnicalIndicators.add_lagged_indicators(df, ['BuySignal', 'SellSignal'], lags=[1, 2, 3, 4, 5])
         df = TechnicalIndicators.add_roc(df, window=5)
         df = TechnicalIndicators.add_macd(df, fast_window=12, slow_window=26)
         df = TechnicalIndicators.add_volatility_volume_spikes(df, atr_window=14, volume_ma_window=5)
         df = TechnicalIndicators.add_day_of_week(df)
-        # df = TechnicalIndicators.add_normalized_differences(df, EMA_ColumnName)
+
         return df
 
 class DataManager():
     def __init__(self):
         self.large_dataframe = pd.DataFrame()
         self.pickleFilePath = ""
-        self.short_ema_period = 0
-        self.long_ema_period = 0
+        # self.short_ema_period = 0
+        # self.long_ema_period = 0
 
     def stocks_data(self, csv_path):
         df = pd.read_csv(csv_path)
@@ -578,10 +577,21 @@ class StockApp:
             'date': self.df.index,
             'open': self.df['Open'],
             'high': self.df['High'],
+            f"High_Low_Diff_Lag1": self.df["High_Low_Diff_Lag1"],
+            f"High_Low_Diff_Lag2": self.df["High_Low_Diff_Lag2"],
+            f"High_Low_Diff_Lag3": self.df["High_Low_Diff_Lag3"],
+            f"High_Low_Diff_Lag4": self.df["High_Low_Diff_Lag4"],
+            f"High_Low_Diff_Lag5": self.df["High_Low_Diff_Lag5"],
             'low': self.df['Low'],
             'close': self.df['Close'],
-            f"EMA_{self.dataManager.short_ema_period}": self.df[f"EMA_{self.dataManager.short_ema_period}"],
-            f"EMA_{self.dataManager.long_ema_period}": self.df[f"EMA_{self.dataManager.long_ema_period}"],
+            f"Close_Diff_Lag1": self.df["Close_Diff_Lag1"],
+            f"Close_Diff_Lag2": self.df["Close_Diff_Lag2"],
+            f"Close_Diff_Lag3": self.df["Close_Diff_Lag3"],
+            f"Close_Diff_Lag4": self.df["Close_Diff_Lag4"],
+            f"Close_Diff_Lag5": self.df["Close_Diff_Lag5"],
+            
+            # f"EMA_{self.dataManager.short_ema_period}": self.df[f"EMA_{self.dataManager.short_ema_period}"],
+            # f"EMA_{self.dataManager.long_ema_period}": self.df[f"EMA_{self.dataManager.long_ema_period}"],
             f"VWAP": self.df["VWAP"],
             f"BB_Upper": self.df["BB_Upper"],
             f"BB_Middle": self.df["BB_Middle"],
@@ -592,11 +602,20 @@ class StockApp:
             f"Time_Sin": self.df["Time_Sin"],
             f"Time_Cos": self.df["Time_Cos"],
             f"Returns": self.df["Returns"],
-            f"Norm_Diff_EMA": self.df["Norm_Diff_EMA"],
-            f"Norm_Diff_VWAP": self.df["Norm_Diff_VWAP"]
+            f"Returns_Lag1": self.df["Returns_Lag1"],
+            f"Returns_Lag2": self.df["Returns_Lag2"],
+            f"Returns_Lag3": self.df["Returns_Lag3"],
+            f"Returns_Lag4": self.df["Returns_Lag4"],
+            f"Returns_Lag5": self.df["Returns_Lag5"],
+            f"ROC": self.df["ROC"],
+            f"Volume_Change": self.df["Volume_Change"],
+            f"Volume_MA": self.df["Volume_MA"],
+            f"ATR_Ratio": self.df["ATR_Ratio"],
+            f"DayOfWeek": self.df["DayOfWeek"],
+            
+            # f"Norm_Diff_EMA": self.df["Norm_Diff_EMA"],
+            # f"Norm_Diff_VWAP": self.df["Norm_Diff_VWAP"]
         })
-
-
 
         
         # Create a ColumnDataSource for the "BuySignal" line
@@ -738,12 +757,12 @@ class StockApp:
         # Plot the Close Price as a blue line
         p.line('date', 'close', source=self.source, line_width=2, color=(0, 0, 0), legend_label="Close Price")
 
-        # Plot the df[f"EMA_{period}"]
-        short_ema_period_column_name = f"EMA_{self.dataManager.short_ema_period}"
-        p.line('date', short_ema_period_column_name, source=self.source, line_width=2, color=(235, 64, 52), legend_label=short_ema_period_column_name)
+        # # Plot the df[f"EMA_{period}"]
+        # short_ema_period_column_name = f"EMA_{self.dataManager.short_ema_period}"
+        # p.line('date', short_ema_period_column_name, source=self.source, line_width=2, color=(235, 64, 52), legend_label=short_ema_period_column_name)
 
-        long_ema_period_column_name = f"EMA_{self.dataManager.long_ema_period}"
-        p.line('date', long_ema_period_column_name, source=self.source, line_width=2, color=(52, 110, 235), legend_label=long_ema_period_column_name)
+        # long_ema_period_column_name = f"EMA_{self.dataManager.long_ema_period}"
+        # p.line('date', long_ema_period_column_name, source=self.source, line_width=2, color=(52, 110, 235), legend_label=long_ema_period_column_name)
 
 
         # Plot the VWAP
@@ -767,10 +786,57 @@ class StockApp:
         p.line('date', 'Time_Cos', source=self.source, line_width=2, color=self.get_color(3, False), legend_label="Time_Cos")
         # Plot the Returns
         p.line('date', 'Returns', source=self.source, line_width=2, color=self.get_color(4, False), legend_label="Returns")
-        # Plot the Norm_Diff_EMA
-        p.line('date', 'Norm_Diff_EMA', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="Norm_Diff_EMA")
-        # Plot the Norm_Diff_VWAP
-        p.line('date', 'Norm_Diff_VWAP', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="Norm_Diff_VWAP")
+        # # Plot the Norm_Diff_EMA
+        # p.line('date', 'Norm_Diff_EMA', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="Norm_Diff_EMA")
+        # # Plot the Norm_Diff_VWAP
+        # p.line('date', 'Norm_Diff_VWAP', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="Norm_Diff_VWAP")
+
+
+
+        # Plot the High_Low_Diff_Lag1
+        p.line('date', 'High_Low_Diff_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="High_Low_Diff_Lag1")
+        # Plot the High_Low_Diff_Lag2
+        p.line('date', 'High_Low_Diff_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="High_Low_Diff_Lag2")
+        # Plot the High_Low_Diff_Lag3
+        p.line('date', 'High_Low_Diff_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), legend_label="High_Low_Diff_Lag3")
+        # Plot the High_Low_Diff_Lag4
+        p.line('date', 'High_Low_Diff_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), legend_label="High_Low_Diff_Lag4")
+        # Plot the High_Low_Diff_Lag5
+        p.line('date', 'High_Low_Diff_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="High_Low_Diff_Lag5")
+
+        # Plot the Close_Diff_Lag1
+        p.line('date', 'Close_Diff_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="Close_Diff_Lag1")
+        # Plot the Close_Diff_Lag2
+        p.line('date', 'Close_Diff_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="Close_Diff_Lag2")
+        # Plot the Close_Diff_Lag3
+        p.line('date', 'Close_Diff_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), legend_label="Close_Diff_Lag3")
+        # Plot the Close_Diff_Lag4
+        p.line('date', 'Close_Diff_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), legend_label="Close_Diff_Lag4")
+        # Plot the Close_Diff_Lag5
+        p.line('date', 'Close_Diff_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="Close_Diff_Lag5")
+
+        # Plot the Returns_Lag1
+        p.line('date', 'Returns_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="Returns_Lag1")
+        # Plot the Returns_Lag2
+        p.line('date', 'Returns_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="Returns_Lag2")
+        # Plot the Returns_Lag3
+        p.line('date', 'Returns_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), legend_label="Returns_Lag3")
+        # Plot the Returns_Lag4
+        p.line('date', 'Returns_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), legend_label="Returns_Lag4")
+        # Plot the Returns_Lag5
+        p.line('date', 'Returns_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="Returns_Lag5")
+
+        # Plot the ROC
+        p.line('date', 'ROC', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="ROC")
+
+        # Plot the Volume_Change
+        p.line('date', 'Volume_Change', source=self.source, line_width=2, color=self.get_color(1, False), legend_label="Volume_Change")
+        # Plot the Volume_MA
+        p.line('date', 'Volume_MA', source=self.source, line_width=2, color=self.get_color(2, False), legend_label="Volume_MA")
+        # Plot the Volume_MA
+        p.line('date', 'Volume_MA', source=self.source, line_width=2, color=self.get_color(3, False), legend_label="Volume_MA")
+        # Plot the DayOfWeek
+        p.line('date', 'DayOfWeek', source=self.source, line_width=2, color=self.get_color(4, False), legend_label="DayOfWeek")
 
 
         # Configure hover tool
@@ -781,8 +847,8 @@ class StockApp:
                 ('High', '@high{0.2f}'),
                 ('Low', '@low{0.2f}'),
                 ('Close', '@close{0.2f}'),
-                (short_ema_period_column_name, f'@{short_ema_period_column_name}{{0.000000f}}'),  # Explicit 6 zeros
-                (long_ema_period_column_name, f'@{long_ema_period_column_name}{{0.000000f}}')
+                # (short_ema_period_column_name, f'@{short_ema_period_column_name}{{0.000000f}}'),  # Explicit 6 zeros
+                # (long_ema_period_column_name, f'@{long_ema_period_column_name}{{0.000000f}}')
             ],
             formatters={
                 '@date': 'datetime'
@@ -801,7 +867,9 @@ class StockApp:
         # Enable clicking to hide/show lines
         p.legend.click_policy = "hide"
         
-        p.legend.location = "top_left"
+        # p.legend.location = "top_left"
+        p.legend.ncols = 2  # Organize into 2 columns
+        p.legend.location = "right"
         return p
 
     def on_plot_click(self, event):
@@ -852,7 +920,7 @@ class StockApp:
         # Print the selected date, text input, and radio button value to the console
         print(f"Sell Submitted - Date: {self.selected_date}, Radio: {Sell_radio_value}")
         
-        # Update the BuySignal column by adding the radio value to the selected date's BuySignal
+        # Update the SellSignal column by adding the radio value to the selected date's SellSignal
         if self.selected_date in self.df.index:
             self.df.loc[self.selected_date, 'SellSignal'] = Sell_radio_value
         else:
@@ -871,6 +939,8 @@ class StockApp:
         print(filtered_df)
         print(self.df)
 
+        # TechnicalIndicators.add_lagged_indicators(df, ['BuySignal', 'SellSignal'], lags=[1, 2, 3, 4, 5])
+
         # Save dataframe to file
         self.dataManager.save_dataframe_as_pickle(self.df)
 
@@ -879,6 +949,8 @@ class StockApp:
         filtered_df = self.df[self.df['SellSignal'].isin([0, 1])]
         print(filtered_df)
         print(self.df)
+
+        # TechnicalIndicators.add_lagged_indicators(df, ['BuySignal', 'SellSignal'], lags=[1, 2, 3, 4, 5])
 
         # Save dataframe to file
         self.dataManager.save_dataframe_as_pickle(self.df)
@@ -916,7 +988,7 @@ if __name__ == '__main__':
 
     else:
         print(f"File '{dataManager.pickleFilePath}' does not exist. Loading from CSV files")
-        df = dataManager.build_df_from_directory(root_dir, 100000)
+        df = dataManager.build_df_from_directory(root_dir, 500)
 
         df = df.drop(columns=['VolumeWeighted'])
 
