@@ -14,6 +14,7 @@ import panel as pn
 from scipy.signal import butter, filtfilt
 from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, HoverTool
+from bokeh.models import WheelZoomTool
 from bokeh.events import Tap
 from bokeh.transform import factor_cmap
 
@@ -761,7 +762,10 @@ class StockApp:
 
     def create_plot(self):
         """Create the Bokeh plot with OHLCV 'Close' line and the 'Signal' line."""
-        p = figure(x_axis_type="datetime", title="OHLCV Data", height=800, width=1200, sizing_mode="stretch_both")
+        p = figure(x_axis_type="datetime", title="OHLCV Data", height=800, width=1200, sizing_mode="stretch_both", tools="pan,box_zoom,reset,save,wheel_zoom")
+
+        # Set the wheel zoom tool as active on load
+        p.toolbar.active_scroll = p.select_one(WheelZoomTool)
 
 
         # Plot dots on the chart for 1 buy signals
@@ -910,6 +914,7 @@ class StockApp:
         # p.legend.location = "top_left"
         p.legend.ncols = 2  # Organize into 2 columns
         p.legend.location = "right"
+
         return p
 
     def on_plot_click(self, event):
