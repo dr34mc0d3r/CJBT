@@ -11,6 +11,7 @@ import numpy as np
 import pandas_ta as ta
 import pandas as pd
 import panel as pn
+from scipy.signal import butter, filtfilt
 from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, HoverTool
 from bokeh.events import Tap
@@ -391,6 +392,26 @@ class TechnicalIndicators:
         df['Norm_Diff_EMA'] = (df['Close'] - df[f"{EMA_ColumnName}"]) / df['ATR']
         df['Norm_Diff_VWAP'] = (df['Close'] - df['VWAP']) / df['ATR']
         return df
+    
+    @staticmethod
+    # Butterworth filter functions
+    def butter_lowpass(close_prices, cutoff, fs, order=5):
+        nyquist = 0.5 * fs
+        normal_cutoff = cutoff / nyquist
+        b_low, a_low = butter(order, normal_cutoff, btype='low', analog=False)
+
+        lowpass_filtered = filtfilt(b_low, a_low, close_prices)
+        df['Lowpass'] = lowpass_filtered
+        return df
+
+    def butter_highpass(close_prices, cutoff, fs, order=5):
+        nyquist = 0.5 * fs
+        normal_cutoff = cutoff / nyquist
+        b_high, a_high = butter(order, normal_cutoff, btype='high', analog=False)
+
+        highpass_filtered = filtfilt(b_high, a_high, close_prices)
+        df['Highpass'] = highpass_filtered + close_prices
+        return df
 
     @staticmethod
     def add_all_features(df, rsi_window=14, bb_window=20, bb_std=2, atr_window=14, trading_minutes=390):
@@ -419,6 +440,16 @@ class TechnicalIndicators:
         df = TechnicalIndicators.add_macd(df, fast_window=12, slow_window=26)
         df = TechnicalIndicators.add_volatility_volume_spikes(df, atr_window=14, volume_ma_window=5)
         df = TechnicalIndicators.add_day_of_week(df)
+
+        close_prices = df['Close'].values
+        fs = 1  # 1 sample per minute
+        cutoff_freq = 0.01  # Adjust this based on your needs
+
+        
+
+        df = TechnicalIndicators.butter_highpass(close_prices, cutoff_freq, fs, order=5)
+
+        df = TechnicalIndicators.butter_lowpass(close_prices, cutoff_freq, fs, order=5)
 
         return df
 
@@ -612,6 +643,8 @@ class StockApp:
             f"Volume_MA": self.df["Volume_MA"],
             f"ATR_Ratio": self.df["ATR_Ratio"],
             f"DayOfWeek": self.df["DayOfWeek"],
+            f"Lowpass": self.df["Lowpass"],
+            f"Highpass": self.df["Highpass"],
             
             # f"Norm_Diff_EMA": self.df["Norm_Diff_EMA"],
             # f"Norm_Diff_VWAP": self.df["Norm_Diff_VWAP"]
@@ -837,6 +870,13 @@ class StockApp:
         p.line('date', 'Volume_MA', source=self.source, line_width=2, color=self.get_color(3, False), legend_label="Volume_MA")
         # Plot the DayOfWeek
         p.line('date', 'DayOfWeek', source=self.source, line_width=2, color=self.get_color(4, False), legend_label="DayOfWeek")
+
+        # Plot LowPass Filter
+        p.line('date', 'Lowpass', source=self.source, line_width=2, color=self.get_color(1, False), legend_label="Lowpass")
+        # Plot Highpass Filter
+        p.line('date', 'Highpass', source=self.source, line_width=2, color=self.get_color(2, False), legend_label="Highpass")
+
+
 
 
         # Configure hover tool
