@@ -788,7 +788,7 @@ class StockApp:
 
 
         # Plot the Close Price as a blue line
-        p.line('date', 'close', source=self.source, line_width=2, color=(0, 0, 0), legend_label="Close Price")
+        p.line('date', 'close', source=self.source, line_width=2, color=(0, 0, 0), visible=True, legend_label="Close Price")
 
         # # Plot the df[f"EMA_{period}"]
         # short_ema_period_column_name = f"EMA_{self.dataManager.short_ema_period}"
@@ -799,82 +799,82 @@ class StockApp:
 
 
         # Plot the VWAP
-        p.line('date', 'VWAP', source=self.source, line_width=2, color=self.get_color(7, False), legend_label="VWAP")
+        p.line('date', 'VWAP', source=self.source, line_width=2, color=self.get_color(7, False), visible=False, legend_label="VWAP")
         # Plot the BB_Upper
-        p.line('date', 'BB_Upper', source=self.source, line_width=2, color=self.get_color(8, False), legend_label="BB_Upper")
+        p.line('date', 'BB_Upper', source=self.source, line_width=2, color=self.get_color(8, False), visible=True, legend_label="BB_Upper")
         # Plot the BB_Middle
-        p.line('date', 'BB_Middle', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="BB_Middle")
+        p.line('date', 'BB_Middle', source=self.source, line_width=2, color=self.get_color(9, False), visible=True, legend_label="BB_Middle")
         # Plot the BB_Lower
-        p.line('date', 'BB_Lower', source=self.source, line_width=2, color=self.get_color(10, False), legend_label="BB_Lower")
+        p.line('date', 'BB_Lower', source=self.source, line_width=2, color=self.get_color(10, False), visible=True, legend_label="BB_Lower")
         # Plot the BBP
-        p.line('date', 'BBP', source=self.source, line_width=2, color=self.get_color(11, False), legend_label="BBP")
+        p.line('date', 'BBP', source=self.source, line_width=2, color=self.get_color(11, False), visible=False, legend_label="BBP")
 
         # Plot the RSI
-        p.line('date', 'RSI', source=self.source, line_width=2, color=self.get_color(0, False), legend_label="RSI")
+        p.line('date', 'RSI', source=self.source, line_width=2, color=self.get_color(0, False), visible=False, legend_label="RSI")
         # Plot the ATR
-        p.line('date', 'ATR', source=self.source, line_width=2, color=self.get_color(1, False), legend_label="ATR")
+        p.line('date', 'ATR', source=self.source, line_width=2, color=self.get_color(1, False), visible=False, legend_label="ATR")
         # Plot the Time_Sin
-        p.line('date', 'Time_Sin', source=self.source, line_width=2, color=self.get_color(2, False), legend_label="Time_Sin")
+        p.line('date', 'Time_Sin', source=self.source, line_width=2, color=self.get_color(2, False), visible=False, legend_label="Time_Sin")
         # Plot the Time_Cos
-        p.line('date', 'Time_Cos', source=self.source, line_width=2, color=self.get_color(3, False), legend_label="Time_Cos")
+        p.line('date', 'Time_Cos', source=self.source, line_width=2, color=self.get_color(3, False), visible=False, legend_label="Time_Cos")
         # Plot the Returns
-        p.line('date', 'Returns', source=self.source, line_width=2, color=self.get_color(4, False), legend_label="Returns")
+        p.line('date', 'Returns', source=self.source, line_width=2, color=self.get_color(4, False), visible=False, legend_label="Returns")
         # # Plot the Norm_Diff_EMA
-        # p.line('date', 'Norm_Diff_EMA', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="Norm_Diff_EMA")
+        # p.line('date', 'Norm_Diff_EMA', source=self.source, line_width=2, color=self.get_color(5, False), visible=False, legend_label="Norm_Diff_EMA")
         # # Plot the Norm_Diff_VWAP
-        # p.line('date', 'Norm_Diff_VWAP', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="Norm_Diff_VWAP")
+        # p.line('date', 'Norm_Diff_VWAP', source=self.source, line_width=2, color=self.get_color(6, False), visible=False, legend_label="Norm_Diff_VWAP")
 
 
 
         # Plot the High_Low_Diff_Lag1
-        p.line('date', 'High_Low_Diff_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="High_Low_Diff_Lag1")
+        p.line('date', 'High_Low_Diff_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), visible=False, legend_label="High_Low_Diff_Lag1")
         # Plot the High_Low_Diff_Lag2
-        p.line('date', 'High_Low_Diff_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="High_Low_Diff_Lag2")
+        p.line('date', 'High_Low_Diff_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), visible=False, legend_label="High_Low_Diff_Lag2")
         # Plot the High_Low_Diff_Lag3
-        p.line('date', 'High_Low_Diff_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), legend_label="High_Low_Diff_Lag3")
+        p.line('date', 'High_Low_Diff_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), visible=False, legend_label="High_Low_Diff_Lag3")
         # Plot the High_Low_Diff_Lag4
-        p.line('date', 'High_Low_Diff_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), legend_label="High_Low_Diff_Lag4")
+        p.line('date', 'High_Low_Diff_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), visible=False, legend_label="High_Low_Diff_Lag4")
         # Plot the High_Low_Diff_Lag5
-        p.line('date', 'High_Low_Diff_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="High_Low_Diff_Lag5")
+        p.line('date', 'High_Low_Diff_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), visible=False, legend_label="High_Low_Diff_Lag5")
 
         # Plot the Close_Diff_Lag1
-        p.line('date', 'Close_Diff_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="Close_Diff_Lag1")
+        p.line('date', 'Close_Diff_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), visible=False, legend_label="Close_Diff_Lag1")
         # Plot the Close_Diff_Lag2
-        p.line('date', 'Close_Diff_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="Close_Diff_Lag2")
+        p.line('date', 'Close_Diff_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), visible=False, legend_label="Close_Diff_Lag2")
         # Plot the Close_Diff_Lag3
-        p.line('date', 'Close_Diff_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), legend_label="Close_Diff_Lag3")
+        p.line('date', 'Close_Diff_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), visible=False, legend_label="Close_Diff_Lag3")
         # Plot the Close_Diff_Lag4
-        p.line('date', 'Close_Diff_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), legend_label="Close_Diff_Lag4")
+        p.line('date', 'Close_Diff_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), visible=False, legend_label="Close_Diff_Lag4")
         # Plot the Close_Diff_Lag5
-        p.line('date', 'Close_Diff_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="Close_Diff_Lag5")
+        p.line('date', 'Close_Diff_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), visible=False, legend_label="Close_Diff_Lag5")
 
         # Plot the Returns_Lag1
-        p.line('date', 'Returns_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), legend_label="Returns_Lag1")
+        p.line('date', 'Returns_Lag1', source=self.source, line_width=2, color=self.get_color(5, False), visible=False, legend_label="Returns_Lag1")
         # Plot the Returns_Lag2
-        p.line('date', 'Returns_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), legend_label="Returns_Lag2")
+        p.line('date', 'Returns_Lag2', source=self.source, line_width=2, color=self.get_color(6, False), visible=False, legend_label="Returns_Lag2")
         # Plot the Returns_Lag3
-        p.line('date', 'Returns_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), legend_label="Returns_Lag3")
+        p.line('date', 'Returns_Lag3', source=self.source, line_width=2, color=self.get_color(7, False), visible=False, legend_label="Returns_Lag3")
         # Plot the Returns_Lag4
-        p.line('date', 'Returns_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), legend_label="Returns_Lag4")
+        p.line('date', 'Returns_Lag4', source=self.source, line_width=2, color=self.get_color(8, False), visible=False, legend_label="Returns_Lag4")
         # Plot the Returns_Lag5
-        p.line('date', 'Returns_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="Returns_Lag5")
+        p.line('date', 'Returns_Lag5', source=self.source, line_width=2, color=self.get_color(9, False), visible=False, legend_label="Returns_Lag5")
 
         # Plot the ROC
-        p.line('date', 'ROC', source=self.source, line_width=2, color=self.get_color(9, False), legend_label="ROC")
+        p.line('date', 'ROC', source=self.source, line_width=2, color=self.get_color(9, False), visible=False, legend_label="ROC")
 
         # Plot the Volume_Change
-        p.line('date', 'Volume_Change', source=self.source, line_width=2, color=self.get_color(1, False), legend_label="Volume_Change")
+        p.line('date', 'Volume_Change', source=self.source, line_width=2, color=self.get_color(1, False), visible=False, legend_label="Volume_Change")
         # Plot the Volume_MA
-        p.line('date', 'Volume_MA', source=self.source, line_width=2, color=self.get_color(2, False), legend_label="Volume_MA")
+        p.line('date', 'Volume_MA', source=self.source, line_width=2, color=self.get_color(2, False), visible=False, legend_label="Volume_MA")
         # Plot the Volume_MA
-        p.line('date', 'Volume_MA', source=self.source, line_width=2, color=self.get_color(3, False), legend_label="Volume_MA")
+        p.line('date', 'Volume_MA', source=self.source, line_width=2, color=self.get_color(3, False), visible=False, legend_label="Volume_MA")
         # Plot the DayOfWeek
-        p.line('date', 'DayOfWeek', source=self.source, line_width=2, color=self.get_color(4, False), legend_label="DayOfWeek")
+        p.line('date', 'DayOfWeek', source=self.source, line_width=2, color=self.get_color(4, False), visible=False, legend_label="DayOfWeek")
 
         # Plot LowPass Filter
-        p.line('date', 'Lowpass', source=self.source, line_width=2, color=self.get_color(1, False), legend_label="Lowpass")
+        p.line('date', 'Lowpass', source=self.source, line_width=2, color=self.get_color(1, False), visible=False, legend_label="Lowpass")
         # Plot Highpass Filter
-        p.line('date', 'Highpass', source=self.source, line_width=2, color=self.get_color(2, False), legend_label="Highpass")
+        p.line('date', 'Highpass', source=self.source, line_width=2, color=self.get_color(2, False), visible=False, legend_label="Highpass")
 
 
 
